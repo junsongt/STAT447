@@ -135,15 +135,42 @@
 \begin{enumerate}
   \item 
   \begin{lstlisting}[language=R]
-    
+  posterior_given_four_heads = function(rho) {
+    K = length(rho)
+    posterior = NULL
+    sum = 0
+    for (k in (1 : K)) {
+      p_k = (1-(k-1)/(K-1))^4 * rho[k] #joint p(Y, X = k)
+      sum = sum + p_k
+      posterior = c(posterior, p_k)
+    }
+    # normalizing
+    posterior = posterior / sum
+    return (posterior)
+  }
+  
+  
   \end{lstlisting}
+
+  \item \begin{lstlisting}[language=R]
+    posterior_given_four_heads(c(1/100,98/100,1/100))[2] - 98/114
+  # 0
+    \end{lstlisting}
   
   
   \item 
+  \begin{lstlisting}[language=R]
+    rho = seq(1,10,1)
+    rho = rho / sum(rho)
+    posterior_given_four_heads(rho)
+    # 0.201845869866174, 0.252022765728349, 0.221596677434241, 0.159483156437471, 0.0961390555299185, 0.0472542685740655, 0.0174434702353484, 0.00393785571450546, 0.000276880479926166, 0
+    \end{lstlisting}
+    From the posterior distribution, we can infer that when we have four heads: $(0,0,0,0)$, then it is most likely that $X = 2$. i.e. type $2$ coin.
 \end{enumerate}
 
 
 
+\qsol{}
 
 
 
