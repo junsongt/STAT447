@@ -171,6 +171,39 @@
 
 
 \qsol{}
+\begin{enumerate}
+  \item 
+  \[X \sim \]
+
+
+  \item  
+  \begin{lstlisting}[language=R]
+  posterior = function(rho, n_heads, n_observations) {
+  posterior = NULL
+  K = length(rho) - 1
+  # normalize rho
+  rho = rho / sum(rho)
+  sum = 0
+  for (k in (0:K)) {
+    p_k = dbinom(n_heads, n_observations, 1-k/K) * rho[k+1]
+    sum = sum + p_k
+    posterior = c(posterior, p_k)
+  }
+  # normalizing
+  posterior = posterior / sum
+  return (posterior)
+}
+  \end{lstlisting}
+
+  \item 
+  \begin{lstlisting}[language=R]
+    rho = seq(from=1, to=10, by=1)
+    n_heads = 2
+    n_observations = 10
+    posterior(rho, n_heads, n_observations)  
+  \end{lstlisting}
+  
+\end{enumerate}
 
 
 
