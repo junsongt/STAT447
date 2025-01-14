@@ -1,0 +1,114 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+
+
+
+
+\begin{document}
+
+
+
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Exercise 2}
+
+
+
+% WRITE YOUR SOLUTION TO THE FIRST QUESTION
+\qsol{define a Bayesian model} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+\begin{enumerate}
+  \item The unknown quantity is the value of $p$, and the data is the observed value of $Y_i$'s.
+  \item \begin{align*}
+  & X \sim \rho, \rho = (\rho_k)_{k=1}^K\\
+  & Y | X \sim \Bernoulli(X)
+  \end{align*}
+\end{enumerate}
+
+% WRITE YOUR SOLUTION TO THE SECOND QUESTION
+\qsol{posterior and point estimates}
+\begin{enumerate}
+  \item 
+  \begin{lstlisting}[language=R]
+    prior_probabilities = NULL
+    realizations = NULL
+    for (k in (0 : K)) {
+        prior_probabilities = c(prior_probabilities, (k/K)*(1-k/K))
+        realizations = c(realizations, k/K)
+    }
+    prior_probabilities
+    realizations
+    plot(realizations, prior_probabilities, type="h", main = "prior pmf")
+  \end{lstlisting}
+  
+
+
+  \item 
+  \begin{lstlisting}[language=R]
+    posterior_probabilities = NULL
+    Z = 0
+    for (k in (0 : K)) {
+      # likelihood = P(X = k/K) * P(Y = (1,1,1) | X = k/K)
+      likelihood = realizations[k+1]**3 * prior_probabilities[k+1]
+      Z = Z + likelihood
+      posterior_probabilities = c(posterior_probabilities, likelihood)
+    }
+    posterior_probabilities = posterior_probabilities / Z
+    posterior_probabilities
+    plot(realizations, posterior_probabilities, type = "h", main = "posterior pmf")
+    
+  \end{lstlisting}
+  
+
+
+  \item From the plot, we can see the posterior mode is at $X = 0.8$
+  
+  \item 
+  \begin{lstlisting}[language=R]
+    # posterior mean
+    m = 0
+    for (k in (0 : K)) {
+      x = realizations[k+1]
+      pi_k = posterior_probabilities[k+1]
+      m = m + x * pi_k
+    }
+    m #0.712497759455099
+    
+  \end{lstlisting}
+\end{enumerate}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\qsol{Bayes action}
+\begin{enumerate}
+  \item xxx
+  \item xxx
+  \item xxx
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+% Optional: Feedback on assignment
+% \qsol{Feedback on assignment}
+
+ 
+\end{document}
+
