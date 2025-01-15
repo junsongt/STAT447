@@ -49,6 +49,7 @@
     realizations
     plot(realizations, prior_probabilities, type="h", main = "prior pmf")
   \end{lstlisting}
+  \includegraphics[width=0.5\textwidth]{prior pmf.png}
   
 
 
@@ -65,8 +66,8 @@
     posterior_probabilities = posterior_probabilities / Z
     posterior_probabilities
     plot(realizations, posterior_probabilities, type = "h", main = "posterior pmf")
-    
   \end{lstlisting}
+  \includegraphics[width=0.5\textwidth]{posterior pmf.png}
   
 
 
@@ -81,8 +82,7 @@
       pi_k = posterior_probabilities[k+1]
       m = m + x * pi_k
     }
-    m #0.712497759455099
-    
+    m #0.712497759455099 
   \end{lstlisting}
 \end{enumerate}
 
@@ -93,13 +93,75 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \qsol{Bayes action}
 \begin{enumerate}
-  \item xxx
-  \item xxx
-  \item xxx
+  \item Set the money unit into $\$M$ 
+  \begin{align*}
+    & L(a, Y_4) = \1_{a = 0} \cdot \$0 + \1_{a = 1; Y_4 = 1} \cdot \$2 + \1_{a = 1; Y_4 = 0} \cdot (\$2 - \$100)\\
+    & = 2 \1_{a = 1; Y_4 = 1} - 98 \1_{a = 1; Y_4 = 0}\\
+  \end{align*}
+
+
+  \item By LOTUS,
+  \begin{align*}
+   & \Lcal(a) = \E[L(a, Y_4) | Y_{1:3} = (1,1,1)]\\
+   & = \sum_{y_4 \in \{0,1\}} L(a, Y_4=y_4) \cdot \P(Y_4 = y_4 | Y_{1:3} = (1,1,1))\\
+   & = 2\1_{a=1} \cdot \P(Y_4 = 1 | Y_{1:3} = (1,1,1)) - 98 \1_{a=1} \cdot \P(Y_4 = 0 | Y_{1:3} = (1,1,1))\\
+   & = 2\1_{a=1}\cdot p - 98\1_{a=1} \cdot (1-p); \text{ where } p := \P(Y_4 = 1 | Y_{1:3} = (1,1,1))\\
+  \end{align*}
+
+
+  \item Plug in the value of $p$ that has been computed in q2(4), then we have $\Lcal(a) = -26.75\1_{a=1}$, so $\Lcal(1) < \Lcal(0)$, meaning we need to buy insurance. 
+  
+  However, if $\Lcal(0) < \Lcal(1) \Rightarrow (2p-98(1-p)) > 0 \Rightarrow p > 0.98$, then we don't need to buy insurance for the posterior at least $98\%$.
 \end{enumerate}
 
 
+\qsol{Challenges}
+\begin{enumerate}
 
+\item
+\begin{lstlisting}[language=R]
+  # challenge question
+  # signature: posteriors, threshold -> index set
+  # overall complexity:
+  # time: O(nlogn + 2n)
+  # space: O(n)
+  
+  highest_prob_set = function(posterior_probabilities, alpha) {
+      n = length(posterior_probabilities)
+      # create hashmap that maps prob -> index
+      # time complexity O(n) and space complexity O(n)
+      dict = c()
+      for (i in (1:n)) {
+          # set k-v pair as (prob, index)
+          p = posterior_probabilities[i]
+          dict[as.character(p)] = i
+      }
+      # sort complexity: O(nlogn)
+      posterior_probabilities = sort(posterior_probabilities, decreasing = TRUE)
+  
+      # linear search complexity: O(n)
+      j = 1
+      sum = 0
+      hps = NULL
+      while (j <= n && sum < alpha) {
+          p = posterior_probabilities[j]
+          hps = c(hps, dict[as.character(p)])
+          j = j + 1
+          sum = sum + p
+      }
+  
+      return (hps)
+  }
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+  print(highest_prob_set(posterior_probabilities = posterior_probabilities, alpha=0.75))
+  # 17, 16, 18, 15, 19, 14, 13, 12
+\end{lstlisting}
+
+\end{enumerate}
 
 
 
