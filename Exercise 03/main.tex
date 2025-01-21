@@ -25,27 +25,111 @@
 
 
 % WRITE YOUR SOLUTION TO THE FIRST QUESTION
-\qsol{} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+\qsol{functions on the unit interval} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+\begin{enumerate}
+\item 
+\begin{lstlisting}[language=R]
+  suppressPackageStartupMessages(library(extraDistr))
+  suppressPackageStartupMessages(library(distr))
+  set.seed(2024)
+
+  # (1)
+  mc_estimate = function(f) {
+    sum = 0
+    for (i in 1:10000) {
+      x = runif(1, 0, 1)
+      sum = sum + f(x)
+    }
+    return (sum / 10000)
+  }
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+  # (2)
+  my_fun = function(x) exp(-x^2)
+  print(mc_estimate(my_fun)) # 0.7495085
+\end{lstlisting}
+
+\item 
+\begin{lstlisting}[language=R]
+  # (3)
+  fun = function(x) sin(cos(sin(x)))
+  print(mc_estimate(fun))  # 0.7590194
+  
+\end{lstlisting}
+\end{enumerate}
 
 
 % WRITE YOUR SOLUTION TO THE SECOND QUESTION
-\qsol{}
-
+\qsol{implementing SNIS for simPPLe}
+\begin{enumerate}
+  \item 
   \begin{lstlisting}[language=R]
+    weight = 1.0
+    # .GlobalEnv$weight = 1.0
+    coin_flips = rep(0, 4)
 
+
+    ## Utilities to make the distr library a bit nicer to use
+
+    p <- function(distribution, realization) {
+      d(distribution)(realization) # return the PMF or density 
+    }
+
+    Bern = function(probability_to_get_one) {
+      DiscreteDistribution(supp = 0:1, prob = c(1-probability_to_get_one, probability_to_get_one))
+    }
+
+    ## Key functions called by simPPLe programs
+
+    # Use simulate(distribution) for unobserved random variables
+    simulate <- function(distribution) {
+      r(distribution)(1) # sample once from the given distribution
+    }
+
+    observe = function(realization, distribution) {
+      # `<<-` lets us modify variables that live in the global scope from inside a function
+      weight <<- weight * p(distribution, realization) 
+    }   
   \end{lstlisting}
 
-  
 
+  \item 
+  \begin{lstlisting}[language=R]
+    # (4)
+    posterior = function(ppl_function, number_of_iterations) {
+      numerator = 0.0
+      denominator = 0.0
+      for (i in 1:number_of_iterations) {
+        weight <<- 1.0
+        g_i = ppl_function()
+        # update numerator and denominator
+        numerator = numerator + g_i * weight
+        denominator = denominator + weight
+      }
+      return(numerator/denominator)
+    }
+  \end{lstlisting}
 
-  
+  \item 
+  \begin{lstlisting}[language=R]
+    # (5)
+    my_ppl = function() {
+      # Similar to forward sampling, but use 'observe' when the variable is observed
+      coin_index = simulate(DiscreteDistribution(supp = 0:2))
+      for (i in seq_along(coin_flips)) { 
+        prob_heads = coin_index/2
+        observe(coin_flips[i], Bern(1 - prob_heads)) 
+      }
+      # return the test function g(x, y)
+      return(ifelse(coin_index == 1, 1, 0))
+    }
 
-
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\qsol{}
+    posterior(my_ppl, 10000) - 1/17 # -0.00101723975274511
+  \end{lstlisting}
+\end{enumerate}
 
 
 
