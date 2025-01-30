@@ -101,7 +101,17 @@ plogis((posterior(logistic_regression_2, 1000))[1])
 
 % WRITE YOUR SOLUTION TO THE SECOND QUESTION
 \qsol{choosing a model}
-
+\begin{lstlisting}[language=R]
+unified_model = function() {
+  post_logis = logistic_regression()
+  post_simple = logistic_regression_2()
+  p_logis = plogis(post_logis[1] + post_logis[2] * length(success_indicators))
+  p_simple = plogis(post_simple[1])
+  return (ifelse(p_logis > p_simple, 1, 0))
+}
+posterior(unified_model, 1000)
+# 0.955874166557784
+\end{lstlisting}
 
 
 
