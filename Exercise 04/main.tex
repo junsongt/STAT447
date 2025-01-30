@@ -45,10 +45,10 @@ logistic_regression = function() {
   thetas = plogis(intercept + slope * (1:n))
   for (i in (1:n)) {
     observe(success_indicators[i], Bern(thetas[i]))
-  }
-  next_theta = intercept + slope * (n + 1)
-  pred = ifelse(next_theta >= 1 / 2, 1, 0)
-  return (c(intercept, slope, pred))
+  } 
+  theta_next = plogis(intercept + slope * (n + 1))
+  y_next = simulate(Bern(theta_next))
+  return (c(intercept, slope, y_next))
 }
 \end{lstlisting}
 
@@ -64,18 +64,20 @@ weighted_scatter_plot(posterior, plot_options = list(xlab="intercept parameter",
 
 
 \item 
+We wish to estimate $\P(Y_{n+1} = 1 | Y^{(n)} = y^{(n)})$, which is $\E (Y_{n+1} | Y^{(n)} = y^{(n)})$, so we can use the posterior function to do the calculation.
 \begin{lstlisting}[language=R]
 # (3)
 post_obj = posterior(logistic_regression, 1000)
 intercept = post_obj[1]
 slope = post_obj[2]
-plogis(slope * (length(success_indicators) + 1) + intercept)
-# 0.990931632727317
+pred = post_obj[3]
+pred
+# 0.951208300707776
 \end{lstlisting}
 
 
 
-\item 
+\item Similar to the last question, we use posterior to compute the posterior mean of $Y_{n+1}$ under the model with no slope. 
 \begin{lstlisting}[language=R]
 # (4)
 logistic_regression_2 = function() {
@@ -85,11 +87,11 @@ logistic_regression_2 = function() {
   for (i in (1:n)) {
     observe(success_indicators[i], Bern(theta))
   }
-  pred = ifelse(theta >= 1 / 2, 1, 0)
-  return (c(intercept, pred))
+  y_next = simulate(Bern(theta))
+  return (c(intercept, y_next))
 }
-plogis((posterior(logistic_regression_2, 1000))[1])
-# 0.733947433558989
+(posterior(logistic_regression_2, 1000))[2]
+# 0.730559041612286
 \end{lstlisting}
 
 
@@ -101,17 +103,23 @@ plogis((posterior(logistic_regression_2, 1000))[1])
 
 % WRITE YOUR SOLUTION TO THE SECOND QUESTION
 \qsol{choosing a model}
+This time, the model index is our parameter, and it has prior on $\Unif(\{0,1\})$. Given the model index, we will use the corresponding model. we want to infer under the observation,the probability of the model index equals to $1$, or equivalently, the posterior mean of model index, so that we could determine whether model $1$ has higher chance or not. So we will implement a new ppl program and then use posterior function to compute the posterior mean.
 \begin{lstlisting}[language=R]
 unified_model = function() {
-  post_logis = logistic_regression()
-  post_simple = logistic_regression_2()
-  p_logis = plogis(post_logis[1] + post_logis[2] * length(success_indicators))
-  p_simple = plogis(post_simple[1])
-  return (ifelse(p_logis > p_simple, 1, 0))
+  # model ~ unif({0,1}) and it represents if we choose the model with slope(=1), or without slope(=0)
+  model = simulate(Bern(1 / 2))
+  if (model == 1) {
+      logistic_regression()
+  }
+  else {
+      logistic_regression_2()
+  }
+  return(model)
 }
 posterior(unified_model, 1000)
-# 0.955874166557784
+# 0.533340959655548
 \end{lstlisting}
+From above, we can see that under the observation, model index being $1$ has higher probability, thus we should choose the model with slope.
 
 
 
