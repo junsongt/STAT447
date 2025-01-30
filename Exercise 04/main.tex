@@ -29,22 +29,73 @@
 \begin{enumerate}
 \item 
 \begin{lstlisting}[language=R]
-  
+suppressPackageStartupMessages(library(extraDistr))
+suppressPackageStartupMessages(library(distr))
+source("./simple.R")
+source("./simple_utils.R")
+set.seed(2024)
+
+success_indicators = c(1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1)
+
+# (1)
+logistic_regression = function() {
+  n = length(success_indicators)
+  intercept = simulate(Norm(0, 1))
+  slope = simulate(Norm(0, 1))
+  thetas = plogis(intercept + slope * (1:n))
+  for (i in (1:n)) {
+    observe(success_indicators[i], Bern(thetas[i]))
+  }
+  next_theta = intercept + slope * (n + 1)
+  pred = ifelse(next_theta >= 1 / 2, 1, 0)
+  return (c(intercept, slope, pred))
+}
+\end{lstlisting}
+
+
+
+\item \begin{lstlisting}[language=R]
+# (2)
+posterior = posterior_particles(logistic_regression, 1000)
+weighted_scatter_plot(posterior, plot_options = list(xlab="intercept parameter", ylab="slope parameter"))
+\end{lstlisting}
+\includegraphics[width=\textwidth]{int_slope.png}
+
+
+
+\item 
+\begin{lstlisting}[language=R]
+# (3)
+post_obj = posterior(logistic_regression, 1000)
+intercept = post_obj[1]
+slope = post_obj[2]
+plogis(slope * (length(success_indicators) + 1) + intercept)
+# 0.990931632727317
 \end{lstlisting}
 
 
 
 \item 
+\begin{lstlisting}[language=R]
+# (4)
+logistic_regression_2 = function() {
+  n = length(success_indicators)
+  intercept = simulate(Norm(0, 1))
+  theta = plogis(intercept)
+  for (i in (1:n)) {
+    observe(success_indicators[i], Bern(theta))
+  }
+  pred = ifelse(theta >= 1 / 2, 1, 0)
+  return (c(intercept, pred))
+}
+plogis((posterior(logistic_regression_2, 1000))[1])
+# 0.733947433558989
+\end{lstlisting}
 
 
 
-\item 
-xxxx
 
 
-
-\item 
-xxxx
 \end{enumerate}
 
 
