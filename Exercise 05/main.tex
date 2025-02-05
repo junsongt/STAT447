@@ -1,0 +1,72 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+
+
+
+
+\begin{document}
+
+
+
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Exercise 5}
+
+
+
+% WRITE YOUR SOLUTION TO THE FIRST QUESTION
+\qsol{sequential updating} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+\begin{enumerate}
+\item 
+Denote $\theta | x^{(n)} \sim \pi$. Since $x_i|\theta$ is i.i.d, then $x^{(n)} |\theta \sim v_{\theta}^n$. Suppose $\mu$ is the common dominating measure of $\nu$ and $\rho$, i.e. $p(x_i|\theta) = \frac{d\nu}{d\mu}(x_i)$ and $p(\theta) = \frac{d\rho}{d\mu}(\theta)$, then by Bayes' Theorem, we have:
+\[\frac{d\pi}{d\mu}(\theta) = p(\theta | x^{(n)}) = \frac{p(x^{(n)}|\theta) \cdot p(\theta)}{\int_{\Theta} p(x^{(n)}|\theta) \cdot p(\theta) d\mu}\]
+Hence\[\pi(d\theta) = \frac{p(x^{(n)}|\theta) \cdot \rho(d\theta)}{\int_{\Theta} p(x^{(n)}|\theta) \cdot \rho(d\theta)} = \frac{\nu_{\theta}^n(dx)\cdot \rho(d\theta)}{\int_{\Theta} \nu_{\theta}^n(dx) \cdot \rho(d\theta)}\]
+
+
+
+\item 
+Using $\pi$ as the new prior, then by Bayes's Theorem, the posterior distribution of $\theta|x_{n+1}$ is given by:
+\begin{align*}
+& \frac{p(x_{n+1}|\theta) \cdot \pi(d\theta)}{\int_{\Theta} p(x_{n+1}|\theta) \cdot \pi(d\theta)}\\
+& = \frac{\nu_{\theta}(dx_{n+1}) \cdot \nu_{\theta}^n(dx)\cdot \rho(d\theta)}{\int_{\Theta} \nu_{\theta}(dx_{n+1}) \cdot \nu_{\theta}^n(dx)\cdot \rho(d\theta)}\\
+& = \frac{\nu_{\theta}^{n+1}(dx) \cdot \rho(d\theta)}{\int_{\Theta} \nu_{\theta}^{n+1}(dx)\cdot \rho(d\theta)}
+\end{align*}We can see that is equivalent of using $\rho$ as prior with $(x_1, \ldots, x_{n+1})$ observations.
+
+
+
+
+
+
+\end{enumerate}
+
+
+% WRITE YOUR SOLUTION TO THE SECOND QUESTION
+\qsol{Bayesian inference in the limit of increasing data}
+\begin{enumerate}
+\item 
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+% Optional: Feedback on assignment
+% \qsol{Feedback on assignment}
+
+ 
+\end{document}
+
