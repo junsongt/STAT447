@@ -54,6 +54,120 @@ Using $\pi$ as the new prior, then by Bayes's Theorem, the posterior distributio
 \qsol{Bayesian inference in the limit of increasing data}
 \begin{enumerate}
 \item 
+\begin{lstlisting}[language=R]
+# global
+library(ggplot2)
+suppressPackageStartupMessages(library(extraDistr))
+suppressPackageStartupMessages(library(distr))
+source("./simple.R")
+source("./simple_utils.R")
+set.seed(2024)
+K = 20
+
+# 1
+posterior_distribution = function(rho, n_successes, n_observations) {
+  K = length(rho) - 1
+  gamma = rho * dbinom(n_successes, n_observations, (0:K)/K)
+  normalizing_constant = sum(gamma)
+  gamma/normalizing_constant
+} 
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+# 2
+posterior_mean = function(post_dist) {
+    return (sum((seq(0, K, 1)/K) * post_dist))
+}
+\end{lstlisting}
+
+\item 
+\begin{lstlisting}[language=R]
+# 3
+simulate_posterior_mean_error = function(rho_true, rho_prior, n_observations){
+    dist_p = DiscreteDistribution(supp = (1/K)*(0:K), prob = rho_true/sum(rho_true))
+    p_true = simulate(dist_p)
+    Y = rep(simulate(Bern(p_true)), n_observations)
+    post_dist = posterior_distribution(rho_prior, sum(Y), n_observations)
+    post_mean = posterior_mean(post_dist)
+    return (abs(p_true - post_mean))
+}
+\end{lstlisting}
+
+\item 
+\begin{lstlisting}[language=R]
+# 4
+rho_true = rho_prior = 1:(K+1)
+n_obs_vector <- 2^(0:6)
+experiment_results = data.frame()
+for (n_obs in n_obs_vector) {
+    errors = rep(simulate_posterior_mean_error(rho_true, rho_prior, n_obs), 1000)
+    df = data.frame(n_observations=rep(n_obs, 1000), replication=(1:1000), errors=errors)
+    experiment_results = rbind(experiment_results, df)
+}
+head(experiment_results)
+tail(experiment_results)
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+# 5
+ggplot(experiment_results, aes(x=n_observations, y=errors+1e-9)) + # avoid log(0)
+    stat_summary(fun = mean, geom="line") + # Line averages over 1000 replicates
+    scale_x_log10() +  # Show result in log-log scale
+    scale_y_log10(n.breaks=16) +
+    coord_cartesian(ylim = c(1e-3, 1)) +
+    theme_minimal() +
+    geom_point() +
+    labs(x = "Number of observations",
+        y = "Absolute error of the posterior mean")
+\end{lstlisting}
+\includegraphics[width=0.9\textwidth]{errors.png}
+
+
+\item From the plot above, we can eyeball that \[\frac{y_7 - y_5}{x_7 - x_5} = \frac{\log_{10}(0.46) - \log_{10}(0.28)}{\log_{10}(2^6) - \log_{10}(2^4)} = 0.33\]
+Let $k = \frac{y_j - y_i}{x_j - x_i}, j > i$, then $\frac{\log (\eps_j/\eps_i)}{\log (2^{j-i})} = k$, where $\eps_i$ is the $i^\text{th}$ error. So that means $2^{k(j-i)} = \frac{\eps_j}{\eps_i}$. So the error will be scaled by a factor of $2^{k(j-i)}$ between two errors $\eps_j$ and $\eps_i$.
+
+
+
+\item 
+\begin{lstlisting}[language=R]
+# 7  
+rho_true = 1:(K+1)
+rho_prior = rep(1, K + 1)
+new_results = data.frame()
+for (n_obs in n_obs_vector) {
+    errors = rep(simulate_posterior_mean_error(rho_true, rho_prior, n_obs), 1000)
+    df = data.frame(n_observations = rep(n_obs, 1000), replication = (1:1000), errors = errors)
+    new_results = rbind(new_results, df)
+}
+
+new_results$prior_type = rep("Different", 1000*length(n_obs_vector))
+
+experiment_results$prior_type = rep("Match", 1000 * length(n_obs_vector))
+
+all_results = rbind(experiment_results, new_results)
+
+ggplot(all_results, aes(x=n_observations, y=errors+1e-9, # avoid log(0) 
+                        color=prior_type, shape=prior_type)) + 
+  stat_summary(fun = mean, geom="line") + # Line averages over 1000 replicates
+  scale_x_log10() +  # Show result in log-log scale
+  scale_y_log10(n.breaks=16) +
+  coord_cartesian(ylim = c(1e-3, 1)) +
+  theme_minimal() +
+  geom_point() +
+  labs(x = "Number of observations",
+       y = "Absolute error of the posterior mean")
+\end{lstlisting}
+
+\includegraphics[width=0.9\textwidth]{two_errors.png}
+
+
+
+
+
 \end{enumerate}
 
 
