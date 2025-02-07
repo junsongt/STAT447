@@ -136,7 +136,7 @@ y5 = mean(experiment_results[experiment_results$n_observations==2^4, ]$errors)
 # -0.496968079903831
 \end{lstlisting}
 We fetch the correspending value from the data frame we had in the previous part, and get:
-\[\frac{y_7 - y_5}{x_7 - x_5} = \frac{\log_{10}(0.46) - \log_{10}(0.28)}{\log_{10}(2^6) - \log_{10}(2^4)} = -0.497\]
+\[\frac{y_7 - y_5}{x_7 - x_5} = \frac{\log_{10}(0.037) - \log_{10}(0.074)}{\log_{10}(2^6) - \log_{10}(2^4)} = -0.497\]
 Let $k = \frac{y_j - y_i}{x_j - x_i}, j > i$, then $\frac{\log (\eps_j/\eps_i)}{\log (2^{j-i})} = k$, where $\eps_i$ is the $i^\text{th}$ error. So that means $2^{k(j-i)} = \frac{\eps_j}{\eps_i}$. So the error will be scaled by a factor of $2^{k(j-i)}$ between two errors $\eps_j$ and $\eps_i$.
 
 
