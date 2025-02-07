@@ -148,7 +148,6 @@ rho_true = 1:(K+1)
 rho_prior = rep(1, K + 1)
 new_results = data.frame()
 for (n_obs in n_obs_vector) {
-    # errors = rep(simulate_posterior_mean_error(rho_true, rho_prior, n_obs), 1000)
     errors = replicate(1000, simulate_posterior_mean_error(rho_true, rho_prior, n_obs))
     df = data.frame(n_observations = rep(n_obs, 1000), replication = (1:1000), errors = errors)
     new_results = rbind(new_results, df)
