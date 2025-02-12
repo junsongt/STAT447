@@ -1,0 +1,76 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+
+
+
+
+\begin{document}
+
+
+
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Exercise 6}
+
+
+
+% WRITE YOUR SOLUTION TO THE FIRST QUESTION
+\qsol{efficacy of vaccines} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+\begin{enumerate}
+\item 
+
+
+
+
+\item 
+\begin{lstlisting}[language=R]
+BetaMP = function(mean, precision){
+    Beta(mean*precision, (1-mean)*precision)
+}
+
+
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+vaccines = read.csv("vaccines.csv")
+vaccines$groupSizes = as.double(vaccines$groupSizes) # needed due to bug in Binom code
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+
+
+\end{lstlisting}
+
+
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
+% Optional: Feedback on assignment
+% \qsol{Feedback on assignment}
+
+ 
+\end{document}
+
