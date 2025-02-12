@@ -27,18 +27,45 @@
 % WRITE YOUR SOLUTION TO THE FIRST QUESTION
 \qsol{efficacy of vaccines} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
 \begin{enumerate}
-\item 
-
-
+\item
+Let the index $i = 1$ be Pfizer, and $i = 2$ be Moderna, then the full model is:
+\begin{align*}
+& \mu_e \sim \Unif(0,1)\\
+& \lambda_e \sim \Exp(0.01)\\
+& \mu_p \sim \BetaMP(0.1, 15)\\
+& \lambda_p \sim \Exp(0.01)\\
+& e_i|\mu_e, \lambda_e \sim \BetaMP(\mu_e, \lambda_e), \forall i \in \{1, 2\}\\
+& p_i|\mu_p, \lambda_p \sim \BetaMP(\mu_p, \lambda_p), \forall i \in \{1, 2\}\\
+& n_c^{(i)}|p_i \sim \Bin(t_c^{(i)}, p_i), \forall i \in \{1, 2\}\\
+& n_v^{(i)}|e_i, p_i \sim \Bin(t_v^{(i)}, p_i(1-e_i)), \forall i \in \{1, 2\}
+\end{align*}
+where $t_c^{(1)} = 18325; t_v^{(1)} = 18198$ and $t_c^{(2)} = 14073; t_v^{(2)} = 14134$
 
 
 \item 
 \begin{lstlisting}[language=R]
+# 2
 BetaMP = function(mean, precision){
     Beta(mean*precision, (1-mean)*precision)
 }
 
-
+ppl_fn = function() {
+    mu_e = simulate(Unif(0,1))
+    lam_e = simulate(Exp(rate = 0.01))
+    mu_p = simulate(BetaMP(0.1, 15))
+    lam_p = simulate(Exp(rate = 0.01))
+    # Pfizer
+    e_pfizer = simulate(BetaMP(mu_e, lam_e))
+    p_pfizer = simulate(BetaMP(mu_p, lam_p))
+    observe(realization = 162, distribution = Binom(prob=p_pfizer, size=18325)) # n_c
+    observe(realization = 8, distribution = Binom(prob=p_pfizer*(1 - e_pfizer), size=18198)) # n_v
+    # Moderna
+    e_moderna = simulate(BetaMP(mu_e, lam_e))
+    p_moderna = simulate(BetaMP(mu_p, lam_p))
+    observe(realization = 185, distribution = Binom(prob=p_moderna, size=14073)) # n_c
+    observe(realization = 11, distribution = Binom(prob=p_moderna*(1 - e_moderna), size=14134)) # n_v
+    return (ifelse(e_moderna > e_pfizer, 1, 0))
+}
 \end{lstlisting}
 
 
@@ -51,8 +78,9 @@ vaccines$groupSizes = as.double(vaccines$groupSizes) # needed due to bug in Bino
 
 \item 
 \begin{lstlisting}[language=R]
-
-
+# 4
+posterior(ppl_fn, 10000)
+# 0.0636724506919168
 \end{lstlisting}
 
 
