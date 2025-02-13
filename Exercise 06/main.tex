@@ -46,7 +46,7 @@ where $t_c^{(1)} = 18325; t_v^{(1)} = 18198$ and $t_c^{(2)} = 14073; t_v^{(2)} =
 \begin{lstlisting}[language=R]
 # 2
 BetaMP = function(mean, precision){
-    Beta(mean*precision, (1-mean)*precision)
+  Beta(mean*precision, (1-mean)*precision)
 }
 
 ppl_fn = function() {
@@ -57,13 +57,21 @@ ppl_fn = function() {
     # Pfizer
     e_pfizer = simulate(BetaMP(mu_e, lam_e))
     p_pfizer = simulate(BetaMP(mu_p, lam_p))
-    observe(realization = 162, distribution = Binom(prob=p_pfizer, size=18325)) # n_c
-    observe(realization = 8, distribution = Binom(prob=p_pfizer*(1 - e_pfizer), size=18198)) # n_v
+    N_c = vaccines[vaccines$trials == "Pfizer-BioNTech" & vaccines$arms == "control", "groupSizes"]
+    N_v = vaccines[vaccines$trials == "Pfizer-BioNTech" & vaccines$arms == "vaccinated", "groupSizes"]
+    n_c = vaccines[vaccines$trials == "Pfizer-BioNTech" & vaccines$arms == "control", "numbersOfCases"]
+    n_v = vaccines[vaccines$trials == "Pfizer-BioNTech" & vaccines$arms == "vaccinated", "numbersOfCases"]
+    observe(realization = n_c, distribution = Binom(prob=p_pfizer, size=N_c)) # n_c
+    observe(realization = n_v, distribution = Binom(prob=p_pfizer*(1 - e_pfizer), size=N_v)) # n_v
     # Moderna
     e_moderna = simulate(BetaMP(mu_e, lam_e))
     p_moderna = simulate(BetaMP(mu_p, lam_p))
-    observe(realization = 185, distribution = Binom(prob=p_moderna, size=14073)) # n_c
-    observe(realization = 11, distribution = Binom(prob=p_moderna*(1 - e_moderna), size=14134)) # n_v
+    N_c = vaccines[vaccines$trials == "Moderna-NIH" & vaccines$arms == "control", "groupSizes"]
+    N_v = vaccines[vaccines$trials == "Moderna-NIH" & vaccines$arms == "vaccinated", "groupSizes"]
+    n_c = vaccines[vaccines$trials == "Moderna-NIH" & vaccines$arms == "control", "numbersOfCases"]
+    n_v = vaccines[vaccines$trials == "Moderna-NIH" & vaccines$arms == "vaccinated", "numbersOfCases"]
+    observe(realization = n_c, distribution = Binom(prob=p_moderna, size=N_c)) # n_c
+    observe(realization = n_v, distribution = Binom(prob=p_moderna*(1 - e_moderna), size=N_v)) # n_v
     return (ifelse(e_moderna > e_pfizer, 1, 0))
 }
 \end{lstlisting}
@@ -82,7 +90,7 @@ vaccines$groupSizes = as.double(vaccines$groupSizes) # needed due to bug in Bino
 posterior(ppl_fn, 10000)
 # 0.0636724506919168
 \end{lstlisting}
-
+Though SNIS has bias, it seems that the result is consistent with the disclosed facts that Pfizer is slightly more effective that Moderna with efficacy $95\%$ for Pfizer and $94\%$ for Moderna. I would say that in this simulation, the SNIS is reliable given the number of iteration is large.
 
 \end{enumerate}
 
