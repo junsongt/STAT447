@@ -90,7 +90,7 @@ vaccines$groupSizes = as.double(vaccines$groupSizes) # needed due to bug in Bino
 posterior(ppl_fn, 10000)
 # 0.0636724506919168
 \end{lstlisting}
-Though SNIS has bias, it seems that the result is consistent with the disclosed facts that Pfizer is slightly more effective that Moderna with efficacy $95\%$ for Pfizer and $94\%$ for Moderna. I would say that in this simulation, the SNIS is reliable given the number of iteration is large.
+It seems that the probability from the SNIS posterior approximation is not very consistent with the disclosed fact that Pfizer has more efficacy than Moderna with probability roughly $0.51$. In theory, we know that eventually, SNIS estimator will converge to the true value, but the convergence speed could be very slow. Though we run the simulation $10000$ times, it still differs from the truth a lot. It is possible that we might run the simulation way more times than the reasonable computation time to get close to the true value. So SNIS is not very reliable in this case.
 
 \end{enumerate}
 
