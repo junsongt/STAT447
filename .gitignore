@@ -1,0 +1,27 @@
+# report/*.aux
+# report/*.bbl
+# report/*.blg
+# report/*.fdb_latexmk
+# report/*.fls
+# report/*.log
+# report/*.out
+# report/*.pdf
+# report/*.synctex.gz
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.pdf
+*.synctex.gz
+
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+*.csv
+*.xlsx
+*.mp4
+*.json

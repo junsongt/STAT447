@@ -1,0 +1,74 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+
+
+
+
+\begin{document}
+
+
+
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Exercise 7}
+
+
+
+% WRITE YOUR SOLUTION TO THE FIRST QUESTION
+\qsol{Installing and running Stan} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+\begin{lstlisting}[language=R]
+  # 1
+  #       mean se_mean   sd  2.5%   25%   50%   75% 97.5% n_eff Rhat
+  # p     0.81    0.01 0.16  0.40  0.73  0.85  0.93  0.99   765    1
+  # lp__ -3.07    0.03 0.76 -5.39 -3.28 -2.77 -2.56 -2.50   606    1
+\end{lstlisting}
+
+
+\qsol{Regression/classification in Stan}
+\begin{lstlisting}[language=R]
+data {
+  int<lower=0> N;
+  vector<lower=0>[N] y;
+
+}
+
+parameters {
+  real<lower=0, upper=200> theta_1;
+  real<lower=0, upper=10> theta_2;
+  real<lower=0, upper=2*pi()> theta_3;
+}
+
+model {
+  // prior
+  theta_1 ~ uniform(0, 200);
+  theta_2 ~ uniform(0, 10);
+  theta_3 ~ uniform(0, 2*pi());
+
+  // likelihood
+  y ~ poisson(theta_1 * sin(theta_2*linspaced_vector(N,1,N) + theta_3) + 1.1);
+}
+\end{lstlisting}
+
+
+
+
+
+
+
+
+% Optional: Feedback on assignment
+% \qsol{Feedback on assignment}
+
+ 
+\end{document}
+
