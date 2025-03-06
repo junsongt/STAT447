@@ -39,6 +39,7 @@ First, the Stan model is defined as:
 \begin{lstlisting}[language=R]
 data {
   int<lower=0> N;
+  vector<lower=0>[N] t;
   vector<lower=0>[N] y;
 
 }
@@ -54,7 +55,7 @@ model {
   theta_3 ~ uniform(0, 2*pi());
 
   // likelihood
-  y ~ poisson(theta_1 * sin(theta_2*linspaced_vector(N,1,N) + theta_3) + 1.1);
+  y ~ poisson(theta1 * (sin(theta2*t + theta3) + 1.1));;
 }
 \end{lstlisting}
 
@@ -76,7 +77,7 @@ then we run Stan for $2500$ iterations:
   init_fun <- function() {
     list(theta1 = 40, theta2 = 1.0, theta3 = 0.25)
   }
-  fit = stan(seed=2025, file="./sunspots.stan", data=list(N=length(counts),y=counts), chains=1, iter=2500, init = init_fun)
+  fit = sampling(stan_model("sunspots.stan"), data=list(N=length(counts), y=counts, t=time), chains=1, iter=2500, init = init_fun, control = list(max_treedepth = 15))
 
 
   samples = extract(fit)
