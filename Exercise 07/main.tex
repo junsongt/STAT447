@@ -98,9 +98,9 @@ then we run Stan for $2500$ iterations:
 So we have the histogram of each $\theta_i$ on the diagonal, and the lower triangular entries are the pairplot of each pair: $\theta_i, \theta_j$ as below:
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{pairplot.png}
-  \caption{}
-  \label{}
+  \includegraphics[width=\textwidth, height=0.55\textheight]{output.png}
+  \caption{Histogram of $\theta_i$ and the pairwise scatterplot of $\theta_i, \theta_j$}
+  \label{fig:pairplot}
 \end{figure}
 
 
@@ -129,26 +129,26 @@ So we have the histogram of each $\theta_i$ on the diagonal, and the lower trian
       dbeta(p, alpha, beta) * dbinom(x = n_successes, size = n_trials, prob = p)
   }
   
-  # simple Metropolis-Hastings algorithm (normal proposal)
   simple_mh = function(gam, initial_point, n_iters) {
     samples = numeric(n_iters) 
     dim = length(initial_point)
     curr = initial_point
+    # gamma(x) == 0 ==> ratio undefined; while gamma(x') = 0 only makes repeated samples
+    # exception handling
+    if (gam(curr) == 0) {
+      print("Invalid initial point!")
+      return(samples)
+    }
     for (i in 1:n_iters) {
-      proposed = rnorm(1, curr, 1)
-      if (proposed <= 0 || proposed >= 1) {
-        samples[i] = curr
+      proposed = rnorm(dim, curr, 1)
+      accept_prob = min(1, gam(proposed)/gam(curr))
+      u = runif(1, 0, 1)
+      if (u <= accept_prob) {
+        samples[i] = proposed
+        curr = proposed
       }
       else {
-        accept_prob = min(1, gam(proposed)/gam(curr))
-        u = runif(1, 0, 1)
-        if (u <= accept_prob) {
-          samples[i] = proposed
-          curr = proposed
-        }
-        else {
-          samples[i] = curr
-        }
+        samples[i] = curr
       }
     }
     return(samples)
@@ -157,8 +157,8 @@ So we have the histogram of each $\theta_i$ on the diagonal, and the lower trian
   \begin{lstlisting}[language=R]
     set.seed(2025)
     samples = simple_mh(gamma_beta_binomial, 0.5, 1500)
-    mean(samples) # 0.671065329361399
-    median(samples) # 0.675648502367764
+    mean(samples) # 0.66855402470144
+    median(samples) # 0.678378290695954
   \end{lstlisting}
 
 
