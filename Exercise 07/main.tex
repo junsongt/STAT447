@@ -35,19 +35,18 @@
 
 
 \qsol{Regression/classification in Stan}
+First, the Stan model is defined as:
 \begin{lstlisting}[language=R]
 data {
   int<lower=0> N;
   vector<lower=0>[N] y;
 
 }
-
 parameters {
   real<lower=0, upper=200> theta_1;
   real<lower=0, upper=10> theta_2;
   real<lower=0, upper=2*pi()> theta_3;
 }
-
 model {
   // prior
   theta_1 ~ uniform(0, 200);
@@ -59,9 +58,58 @@ model {
 }
 \end{lstlisting}
 
+then we run Stan for $2500$ iterations:
+\begin{lstlisting}[language=R]
+  suppressPackageStartupMessages(require(ggplot2))
+  suppressPackageStartupMessages(require(dplyr))
+
+  df = read.csv(
+  "https://raw.githubusercontent.com/UBC-Stat-ML/web447/1e345149a5b698ccdf0a7e9b0aeabec2463c50ca/data/sunspots-SN_m_tot_V2.0.csv",
+  sep = ";", header=FALSE) %>%
+  mutate(count = ceiling(V4)) %>%
+  rename(year = V3) %>%
+  filter(year > 2005)
+
+  counts = df$count 
+  time = df$year
+
+  init_fun <- function() {
+    list(theta1 = 40, theta2 = 1.0, theta3 = 0.25)
+  }
+  fit = stan(seed=2025, file="./sunspots.stan", data=list(N=length(counts),y=counts), chains=1, iter=2500, init = init_fun)
+
+
+  samples = extract(fit)
+  theta1_samples = samples$theta1
+  theta2_samples = samples$theta2
+  theta3_samples = samples$theta3
+  theta_samples = data.frame(theta1 = theta1_samples, theta2 = theta2_samples, theta3 = theta3_samples)
+
+  library(GGally)
+  library(ggplot2)
+
+  ggpairs(theta_samples, 
+          lower = list(continuous = wrap("points", alpha = 0.2)),
+          diag = list(continuous = "barDiag"),
+          upper = list(continuous = "cor"),
+  )
+\end{lstlisting}
+So we have the histogram of each $\theta_i$ on the diagonal, and the lower triangular entries are the pairplot of each pair: $\theta_i, \theta_j$ as below:
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{pairplot.png}
+  \caption{}
+  \label{}
+\end{figure}
 
 
 
+
+
+
+
+
+\qsol{A simple MCMC algorithm}
 
 
 
