@@ -98,12 +98,17 @@ then we run Stan for $2500$ iterations:
 So we have the histogram of each $\theta_i$ on the diagonal, and the lower triangular entries are the pairplot of each pair: $\theta_i, \theta_j$ as below:
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth, height=0.55\textheight]{output.png}
+  \includegraphics[width=0.9\textwidth, height=0.55\textheight]{pairplot.png}
   \caption{Histogram of $\theta_i$ and the pairwise scatterplot of $\theta_i, \theta_j$}
   \label{fig:pairplot}
 \end{figure}
-
-
+However, when we examine the plot of regression for the true data (See Figure \ref{fig:regrssion}), we see that the regression curve is not a very good fit of the data. This is probably due to the misspecification of the model. From EDA, it can be observed that the amplitude of the cycle of data should be increasing with time, while in our model, the amplitude is a fixed $\theta_1$.
+\begin{figure}[!ht]
+  \centering
+  \includegraphics[width=\textwidth, height=0.6\textheight]{regression.png}
+  \caption{Regreesion plot}
+  \label{fig:regrssion}
+\end{figure}
 
 
 

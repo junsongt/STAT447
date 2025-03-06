@@ -10,6 +10,9 @@ parameters {
     real<lower=0, upper=10> theta2;
     real<lower=0, upper=2*pi()> theta3;
 }
+transformed parameters {
+    vector[N] lambda = theta1 * (sin(theta2*t + theta3) + 1.1);
+}
 
 model {
     // prior
@@ -19,6 +22,7 @@ model {
 
     // likelihood
     // y ~ poisson(theta1 * (sin(theta2*linspaced_vector(N,1,N) + theta3) + 1.1));
-    y ~ poisson(theta1 * (sin(theta2*t + theta3) + 1.1));
+    // y ~ poisson(theta1 * (sin(theta2*t + theta3) + 1.1));
+    y ~ poisson(lambda);
 }
 
