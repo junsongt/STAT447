@@ -110,6 +110,62 @@ So we have the histogram of each $\theta_i$ on the diagonal, and the lower trian
 
 
 \qsol{A simple MCMC algorithm}
+\begin{enumerate}
+\item 
+\begin{lstlisting}[language=R]
+  # prior: Beta(alpha, beta)
+  alpha = 1
+  beta = 2 
+  
+  # observations: binomial draws
+  n_successes = 3 
+  n_trials = 3
+  
+  gamma_beta_binomial = function(p) {
+      if (p < 0 || p > 1) {
+          return(0.0)
+      }
+      dbeta(p, alpha, beta) * dbinom(x = n_successes, size = n_trials, prob = p)
+  }
+  
+  # simple Metropolis-Hastings algorithm (normal proposal)
+  simple_mh = function(gam, initial_point, n_iters) {
+    samples = numeric(n_iters) 
+    dim = length(initial_point)
+    curr = initial_point
+    for (i in 1:n_iters) {
+      proposed = rnorm(1, curr, 1)
+      if (proposed <= 0 || proposed >= 1) {
+        samples[i] = curr
+      }
+      else {
+        accept_prob = min(1, gam(proposed)/gam(curr))
+        u = runif(1, 0, 1)
+        if (u <= accept_prob) {
+          samples[i] = proposed
+          curr = proposed
+        }
+        else {
+          samples[i] = curr
+        }
+      }
+    }
+    return(samples)
+  }
+  \end{lstlisting}
+  \begin{lstlisting}[language=R]
+    set.seed(2025)
+    samples = simple_mh(gamma_beta_binomial, 0.5, 1500)
+    mean(samples) # 0.671065329361399
+    median(samples) # 0.675648502367764
+  \end{lstlisting}
+
+
+\item 
+We wish to compute the theoreatical $\E(p | Y = 3)$, so given $p \sim \Beta(1,2)$ and $Y|p \sim \Bin(3, p)$, we have: $\gamma(p) = (1-p)p^3$, so it means the posterior density $\pi(p) \propto p^3(1-p)$, hence $p|Y=3 \sim \Beta(4,2)$, so $\E(p | Y=3) = \frac{4}{4+2} = \frac23$.
+
+
+\end{enumerate}
 
 
 
