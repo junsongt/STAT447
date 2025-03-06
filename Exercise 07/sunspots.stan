@@ -1,6 +1,7 @@
 data {
     int<lower=0> N;
     int<lower=0> y[N];
+    vector<lower=0>[N] t;
     // vector<lower=0>[N] y; ONLY for real array
 }
 
@@ -17,5 +18,7 @@ model {
     theta3 ~ uniform(0, 2*pi());
 
     // likelihood
-    y ~ poisson(theta1 * (sin(theta2*linspaced_vector(N,1,N) + theta3) + 1.1));
+    // y ~ poisson(theta1 * (sin(theta2*linspaced_vector(N,1,N) + theta3) + 1.1));
+    y ~ poisson(theta1 * (sin(theta2*t + theta3) + 1.1));
 }
+
