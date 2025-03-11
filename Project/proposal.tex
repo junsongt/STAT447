@@ -1,0 +1,53 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+
+\begin{document}
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Project Proposal}
+
+
+\section{Introduction \& Background}
+Among many MCMC sampling methods, to avoid unnecessary random walk, there is one type of sampling algorithms that use a deterministic proposal. More explicitly, one can re-express MCMC proposal distribution as an ``involutive'' deterministic function defined on an augmented state space. Such technique was pioneered in \cite{tierney1998}, popularized in HMC by \cite{nealHMC} and recently collectively summarized by \cite{involutiveMCMC}. Additionally, some recent work like autoMALA by \cite{automala} and manifold sampling by \cite{manifoldparent} and \cite{manifoldchild} have shown other applications of such idea. Particularly, the manifold sampling also provided inspirations of sampling distribution on some complicated domains.
+
+
+\section{Research Question}
+First, in the manifold sampling, the underlying idea of constructing an involutive deterministic proposal was implicitly embedded, which motivates us to study whether the involution framework could also be applied to this sampler.
+
+Second, the proposed tangent vector determines a valid landing on the manifold. This means solving constraint equations by Newton solver to check the landing is inevitable every time we make a tangent proposal, But if the solver fails to find a solution, then we will end up having the same samples. But are there any ways that we could make successful proposed tangent vectors more efficiently than blindly re-proposing so that we could have less repeated samples without solving the system of equations too many times?
+
+Last, we notice that autoMALA can tackle distributions with varying geometries defined on $\R^n$. Moreover, it is a gradient-based method that usually outperforms random walk algorithms. so we are curious: is it possible that autoMALA could be applied to sub-manifold in $\R^n$ with some adjustments so that we could make a more efficient manifold sampler than the original random walk one?
+
+
+\section{Research Plan \& Methodology}
+% Before advancing to research questions, we will reproduce the previous results of both the involution framework and manifold sampler for building a strong baseline To achieve this goal, we intend to focus on verifying key performance indicators, including sampling efficiency, convergence speed, and distribution invariance. This reproduction will involve the original algorithms in \cite{manifoldparent} and \cite{manifoldchild}.
+
+First, for the purpose of building a baseline of our project, we will verify whether the involution framework is applicable to manifold sampler and prove its distribution invariance both in theory and implementation, meanwhile keeping track of some key performance indicators like sampling efficiency, convergence speed, sample correlation, etc. We will try to avoid using too much of the geometry language in theory and implementation.
+
+Second, we notice that at certain point $p$ on a manifold, a successful tangent proposal is related to the curvature at $p$. With implementation, we will test the tangent proposal conditioned on $p$ and its Hessian to see if we could improve the efficiency and also reduce the correlation between samples. In addition, we are also interested in addressing the computational bottlenecks of the algorithm mentioned in \cite{manifoldchild}, particularly in high-dimensional settings. If time permits, we will try to explore potential solutions to the specific bottlenecks identified in the literature.
+% We also want to see if we could borrow the idea from autoMALA to self-adjust the direction and magnitude of the tangent proposal so as to ultimately reduce solving system of equations.
+
+Last, tempting but also challenging, we wish to explore the theoretical aspects of autoMALA and propose some potential ideas about how to adjust autoMALA so that it can be applicable to a sub-manifold in $\R^n$.
+
+
+
+
+\nocite{*}
+
+
+
+\clearpage
+\bibliography{ref}
+ 
+\end{document}
+
