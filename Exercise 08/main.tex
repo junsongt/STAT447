@@ -1,0 +1,126 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+
+
+
+
+\begin{document}
+
+
+
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Exercise 8}
+
+
+
+% WRITE YOUR SOLUTION TO THE FIRST QUESTION
+\qsol{Calibration analysis via cross-validation}
+\begin{enumerate}
+\item 
+Below is the Stan code for the ``hubble\_pred'' model:
+\begin{lstlisting}[language=R]
+  data {
+    int<lower=0> N; // number of observations
+    vector[N] xs;   // independent variable
+    vector[N] ys;   // dependent variable
+    real x_pred;  //independent variable for the left-out point
+  }
+
+  parameters {
+    real slope;
+    real<lower=0> sigma;
+  }
+
+  model {
+    // prior
+    slope ~ student_t(3, 0, 100);
+    sigma ~ exponential(0.001);
+
+    // likelihood
+    ys ~ normal(slope*xs, sigma);
+  }
+
+  generated quantities {
+    real y_pred = normal_rng(slope * x_pred, sigma); 
+  }
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+  N_obs = nrow(df)
+  N_train = N_obs-1
+  train_test_dta = list(
+      N  = N_train,
+      xs = df$distance[-N_obs], 
+      ys = df$velocity[-N_obs], 
+      x_pred = df$distance[N_obs]
+  )
+  fit = sampling(stan_model("hubble_predict.stan"), 
+  data=list(N=train_test_dta$N, ys=train_test_dta$ys, xs=train_test_dta$xs, x_pred=train_test_dta$x_pred), 
+  iter=5000, control = list(max_treedepth = 15))
+
+  quantile(extract(fit)$y_pred, prob=c(0.1, 0.9))
+  # 0.485201900838154, 1.13324592497241
+\end{lstlisting}
+It can be seen that the leave-one-out $80\%$ credible interval for ``y\_pred'' quantity is: $[0.48, 1.14]$.
+
+\item 
+\begin{lstlisting}[language=R]
+  # 3
+  ci_limits = matrix(, nrow = N_obs, ncol = 2)
+  for (i in (1:N_obs)) {
+      trained = list(N=N_train, xs=df$distance[-i], ys=df$velocity[-i], x_pred=df$distance[i])
+      fit_i = sampling(stan_model("hubble_predict.stan"), 
+      data=list(N=trained$N, ys=trained$ys, xs=trained$xs, x_pred=trained$x_pred), 
+      iter=5000, control = list(max_treedepth = 15))
+      ci_limits[i,] = as.vector(quantile(extract(fit_i)$y_pred, prob=c(0.1, 0.9)))
+  }
+  merged_df = df %>% 
+  bind_cols(data.frame(CI_L = ci_limits[,1], CI_R = ci_limits[,2])) %>% 
+  mutate(Inside_CI = (velocity >= CI_L & velocity <= CI_R)) 
+  merged_df %>% 
+    ggplot(aes(x = 1:N_obs, y = velocity, ymin = CI_L, ymax = CI_R, color=Inside_CI)) +
+    geom_point() + 
+    geom_errorbar() +
+    theme_minimal() +
+    labs(x = "Point", y = "Velocity")
+\end{lstlisting}
+The plot of $80\%$ credible intervals for all observations are given as in Figure \ref{fig:ci}, hence it can be observed that the number of intervals that fail to capture the true points is $4$, so the proportion of such successful intervals is $\frac56 \approx 0.83$, which is similar to the nominal coverage level.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth, height=0.4\textheight]{ci.png}
+  \caption{Plot of $80\%$ credible intervals for each observation}
+  \label{fig:ci}
+\end{figure}
+
+
+
+
+
+
+\end{enumerate}
+
+
+
+
+
+
+
+\qsol{Estimating asymptotic variance}
+
+
+ 
+\end{document}
+
