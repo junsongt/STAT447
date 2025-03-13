@@ -105,22 +105,66 @@ The plot of $80\%$ credible intervals for all observations are given as in Figur
   \label{fig:ci}
 \end{figure}
 
-
-
-
-
-
 \end{enumerate}
 
 
 
-
-
-
-
 \qsol{Estimating asymptotic variance}
+\begin{lstlisting}[language=R]
+  # function
+  estimate_asymptotic_variance = function(gamma, proposal_sd, C, S) {
+    sum_E = 0
+    sum_Ec_sq = 0
+    init_so_far = numeric(C)
+    counter = 0
+    for (c in (1:C)) {    
+        init_pt = rnorm(1, 0, 1)
+        while (init_pt %in% init_so_far) {
+            init_pt = rnorm(1, 0, 1)
+        }
+        counter = counter + 1
+        init_so_far[counter] = init_pt
+        E_c = mean(simple_mh(gamma, init_pt, S, proposal_sd))
+        sum_E = sum_E + E_c * S
+        sum_Ec_sq = sum_Ec_sq + E_c^2
+    }
+    return ((S/C)*sum_Ec_sq - S*(sum_E/(C*S))^2)
+  }
+\end{lstlisting}
 
 
+\begin{lstlisting}[language=R]
+  # generate the data frame for variances
+  gamma = function(x) exp((-1/2)*x^2)
+  proposal_sd_values = 2^seq(-10, 10, 1)
+  n = length(proposal_sd_values)
+  res = numeric(n)
+  for (i in (1:n)) {
+      res[i] = estimate_asymptotic_variance(gamma, proposal_sd_values[i], 100, 1000)
+  }
+  df = data.frame(estimated_mcmc_variance= res, proposal_sd = proposal_sd_values)
+
+  # plot
+  library(ggplot2)
+  ggplot(df, aes(x = proposal_sd, y = estimated_mcmc_variance)) +
+    geom_line() +
+    geom_point() +
+    scale_x_continuous(trans = "log2", breaks = proposal_sd_values) +
+    labs(x = "Proposal SD (log2 scale)",
+        y = "Estimated asymptotic variance",
+        title = "Estimated asymptotic variance vs proposal SD") + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth, height=0.4\textheight]{est_var.png}
+\caption{Plot of estimated variances of different proposal sd's}
+\label{fig:est_var}
+\end{figure}
+From Figure \ref{fig:est_var}, it can be observed that if the proposal sd are in the range of $\{1, 2, 4\}$, then the estimated asymptotic variance seems to be optimal.
+
+For $\gamma(x) = \exp(-\frac1{2000}x^2)$, since the standard deviation of the target increases, then the target is more spreaded. Using the optimal sd from above would cause the samples more concentrated at the initial point compared to the true target. So this will give a wrong estimation of the variance of target. While on the other side, for $\gamma(x) = \exp(-\frac{1}{2000}(x - 100)^2)$, because the target has the same variance as above but is merely shifted, so in this case, the optimal proposal sd will stay the same.
  
 \end{document}
 
