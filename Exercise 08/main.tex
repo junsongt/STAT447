@@ -59,6 +59,15 @@ Below is the Stan code for the ``hubble\_pred'' model:
 
 \item 
 \begin{lstlisting}[language=R]
+  set.seed(2025)
+  suppressPackageStartupMessages(require(rstan))
+  suppressPackageStartupMessages(require(ggplot2))
+  suppressPackageStartupMessages(require(dplyr))
+  df = read.csv(url("https://github.com/UBC-Stat-ML/web447/raw/0d6eaa346d78abe4cd125e8fc688c9074d6331d9/data/hubble-1.csv")) %>%
+  rename(distance = R..Mpc.) %>%
+  rename(velocity = v..km.sec.)
+  df$velocity = df$velocity/1000
+
   N_obs = nrow(df)
   N_train = N_obs-1
   train_test_dta = list(
@@ -74,7 +83,7 @@ Below is the Stan code for the ``hubble\_pred'' model:
   quantile(extract(fit)$y_pred, prob=c(0.1, 0.9))
   # 0.485201900838154, 1.13324592497241
 \end{lstlisting}
-It can be seen that the leave-one-out $80\%$ credible interval for ``y\_pred'' quantity is: $[0.48, 1.14]$.
+It can be seen that the leave-one-out $80\%$ credible interval for ``y\_pred'' quantity is: $[0.48, 1.13]$.
 
 \item 
 \begin{lstlisting}[language=R]
@@ -113,9 +122,10 @@ The plot of $80\%$ credible intervals for all observations are given as in Figur
 \begin{lstlisting}[language=R]
   # function
   estimate_asymptotic_variance = function(gamma, proposal_sd, C, S) {
-    sum_E = 0
-    sum_Ec_sq = 0
-    init_so_far = numeric(C)
+    sum_E = 0 # the cumulative sum of all E_s^{(c)} to compute the mean: E
+    sum_Ec_sq = 0 # the cumulative sum of all (E_s^{(c)})^2 to compute the 2nd moment
+    init_so_far = numeric(C) # the initial pts so far to avoid duplicate initial pt
+    # could use equivalent hashmap in R to keep init_so_far to have O(1) find()
     counter = 0
     for (c in (1:C)) {    
         init_pt = rnorm(1, 0, 1)
@@ -164,7 +174,7 @@ The plot of $80\%$ credible intervals for all observations are given as in Figur
 \end{figure}
 From Figure \ref{fig:est_var}, it can be observed that if the proposal sd are in the range of $\{1, 2, 4\}$, then the estimated asymptotic variance seems to be optimal.
 
-For $\gamma(x) = \exp(-\frac1{2000}x^2)$, since the standard deviation of the target increases, then the target is more spreaded. Using the optimal sd from above would cause the samples more concentrated at the initial point compared to the true target. So this will give a wrong estimation of the variance of target. While on the other side, for $\gamma(x) = \exp(-\frac{1}{2000}(x - 100)^2)$, because the target has the same variance as above but is merely shifted, so in this case, the optimal proposal sd will stay the same.
+For $\gamma(x) = \exp(-\frac1{2000}x^2)$, since the standard deviation of the target increases, then the target is more spreaded. Using the same optimal sd from above would cause the samples more concentrated at the initial point compared to the true target. So this will give a wrong estimation of the variance of target. While on the other side, for $\gamma(x) = \exp(-\frac{1}{2000}(x - 100)^2)$, because the target has the same variance as above but it is merely shifted, so in this case, the optimal proposal sd will stay roughly the same.
  
 \end{document}
 
