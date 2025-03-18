@@ -15,7 +15,6 @@
 *.log
 *.out
 *.pdf
-!project/references/*.pdf
 *.synctex.gz
 
 *.Rproj.user
