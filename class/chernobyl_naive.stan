@@ -25,25 +25,52 @@
 // }
 
 
+// data {
+//   int<lower=0> N;
+//   real<lower=0> L; // limit
+//   int<lower=0> n; // of obs < limit
+//   vector<upper=L>[n] observed;
+//   
+// }
+// 
+// parameters {
+//   real<lower=0> x;
+//   vector<lower=L>[N-n] unobserved;
+// }
+// 
+// model {
+//   x ~ exponential(1.0/100);
+//   observed ~ exponential(x);
+//   unobserved ~ exponential(x);
+// }
+// 
+// generated quantities {
+//   real mean = 1.0/x;
+// }
+
+
 data {
   int<lower=0> N;
-  real<lower=0> L; # limit
-  int<lower=0> n; # of obs < limit
+  real<lower=0> L; // limit
+  int<lower=0> n; // of obs < limit
   vector<upper=L>[n] observed;
   
 }
 
 parameters {
   real<lower=0> x;
-  vector<lower=L>[N-n] unobserved;
+  vector<lower=0> h;
 }
+
+
 
 model {
   x ~ exponential(1.0/100);
-  observed ~ exponential(x);
-  unobserved ~ exponential(x);
+  h ~ exponential(x);
+  
 }
 
 generated quantities {
   real mean = 1.0/x;
 }
+
