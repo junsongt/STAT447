@@ -147,4 +147,4 @@ ggplot(df_combined, aes(x = Value, color = Type, fill = Type)) +
   labs(title = "Density plot of Stan estimated posterior and theoretical posterior", color = "Sample Type", fill = "Sample Type")
 
 
-
+#==============================================================================
