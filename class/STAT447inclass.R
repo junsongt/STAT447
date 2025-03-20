@@ -98,7 +98,7 @@ fit = sampling(
     L = limit,
     n = n_below_limit,
     observed = data_below_limit),
-  iter = 10000,
+  iter = 100000,
   chain = 1,
   control = list(max_treedepth = 15)
   )
@@ -147,4 +147,33 @@ ggplot(df_combined, aes(x = Value, color = Type, fill = Type)) +
   labs(title = "Density plot of Stan estimated posterior and theoretical posterior", color = "Sample Type", fill = "Sample Type")
 
 
+# Rao-blackwellization
+fit = sampling(
+  stan_model(file.choose()),
+  chains = 1,
+  data = list(
+    N = n_measurements,
+    L = limit,
+    n = n_below_limit,
+    observed = data_below_limit
+  ),       
+  iter = 100000,
+  control = list(max_treedepth = 15)
+)
+
+
 #==============================================================================
+# mixture
+data = read.csv(url("https://github.com/UBC-Stat-ML/web447/raw/main/data/ScoreData.csv"))
+plot(data$Score,
+     ylim = c(0, 20),
+     xlab = "Student index", 
+     ylab = "Score (out of 20 questions)")
+fit = sampling(
+  stan_model(file.choose()),
+  chains = 1,
+  data = list(score = 9),
+  iter = 100000,
+  control = list(max_treedepth = 15)
+)
+mean(extract(fit)$guessing_probability)
