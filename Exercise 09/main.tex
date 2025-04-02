@@ -29,7 +29,7 @@
 \begin{enumerate}
 \item 
 Let $K(\mu_1', \mu_2', c' | \mu_1, \mu_2, c)$ be the MCMC kernel. Define $K$ to be:
-\[K(\mu_1', \mu_2', c' | \mu_1, \mu_2, c) = \frac12 K_1(\mu_1', \mu_2', c | \mu_1, \mu_2, c) + \frac12 K_2(\mu_1, \mu_2, c' | \mu_1, \mu_2, c)\]where $K_1, K_2$ are MCMC kernels corresponding to the update of $(\mu_1, \mu_2)$ and $c$. So then the MCMC algorithm is:
+\[K(\mu_1', \mu_2', c' | \mu_1, \mu_2, c) = K_1(\mu_1', \mu_2', c | \mu_1, \mu_2, c) + \frac12 K_2(\mu_1, \mu_2, c' | \mu_1, \mu_2, c)\]where $K_1, K_2$ are MCMC kernels corresponding to the update of $(\mu_1, \mu_2)$ and $c$. So then the MCMC algorithm is:
 \begin{algorithm}
     \caption{custom MCMC}
     \label{algo:mixture}
