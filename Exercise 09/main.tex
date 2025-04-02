@@ -28,11 +28,69 @@
 \qsol{A custom MCMC sampler}
 \begin{enumerate}
 \item 
+Let $K(\mu_1', \mu_2', c' | \mu_1, \mu_2, c)$ be the MCMC kernel. Define $K$ to be:
+\[K(\mu_1', \mu_2', c' | \mu_1, \mu_2, c) = \frac12 K_1(\mu_1', \mu_2', c | \mu_1, \mu_2, c) + \frac12 K_2(\mu_1, \mu_2, c' | \mu_1, \mu_2, c)\]where $K_1, K_2$ are MCMC kernels corresponding to the update of $(\mu_1, \mu_2)$ and $c$. So then the MCMC algorithm is:
+\begin{algorithm}
+    \caption{custom MCMC}
+    \label{algo:mixture}
+    \begin{algorithmic}[1]
+        \Require $\mu_1, \mu_2, c, y, N$
+        \Ensure $\{c_1, \ldots, c_N\}$ and $(\mu_1^{(N)}, \mu_2^{(N)})$
+
+        \For{$j = 1, \ldots, N$}
+        \State sample $i \sim \Bernoulli(\frac12)$
+        \If{$i = 1$}
+        \State sample $c' \sim q_c( \cdot | c)$
+        \State $r = \exp(log\pi(\mu_1, \mu_2, c') - \log\pi(\mu_1, \mu_2, c))$
+        \State $c_j = \Unif(0,1) < (1 \wedge r) ? c' : c$
+
+        \Else 
+        \State sample $\mu_1' \sim q_{\mu_1}(\cdot | \mu_1)$ and $\mu_2' \sim q_{\mu_2}(\cdot | \mu_2)$
+        \State $r = \exp(log\pi(\mu_1', \mu_2', c) - \log\pi(\mu_1, \mu_2, c))$
+        \State $(\mu_1, \mu_2) = \Unif(0,1) < (1 \wedge r) ? (\mu_1', \mu_2') : (\mu_1, \mu_2)$
+
+        \EndIf
+        \EndFor
+    \end{algorithmic}
+
+\end{algorithm}
 
 
 
 \item 
-
+\begin{lstlisting}[language=R]
+mcmc = function(means, change_point, y, n_iterations) {
+    change_point_trace = rep(-1, n_iterations)
+    
+    for (i in 1:n_iterations) {
+        # TODO: implement a MCMC sampler
+        index = ifelse(runif(1) <= 0.5, 0, 1)
+        # if index = 1, then use K2 to sample C
+        if (index == 1) {
+        proposed_c = rnorm(1, change_point, sd = 5)
+        proposed_c = ifelse(proposed_c >= 0, ceiling(proposed_c), floor(proposed_c))
+        ratio = exp(log_joint(means, proposed_c, y) - log_joint(means, change_point, y))
+        change_point = ifelse(runif(1) < ratio, proposed_c, change_point)
+        change_point_trace[i] = change_point
+        }
+        else {
+        proposed_mu = c(rnorm(1, means[[1]], sd = 5), rnorm(1, means[[2]], sd = 5))
+        ratio = exp(log_joint(proposed_mu, change_point, y) - log_joint(means, change_point, y))
+        means = ifelse(runif(1) < ratio, proposed_mu, means)
+        }
+    }
+    
+    # Return:
+    # - the trace of the change points (for question 1) 
+    # - the means at the last iteration (for question 2)
+    return(
+        list(
+        change_point_trace = change_point_trace, 
+        last_iteration_means = means 
+        )
+    )
+}
+\end{lstlisting}
 
 
 
