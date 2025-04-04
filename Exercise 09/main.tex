@@ -61,23 +61,24 @@ Let $K(\mu_1', \mu_2', c' | \mu_1, \mu_2, c)$ be the MCMC kernel. Define $K$ to 
 \begin{lstlisting}[language=R]
 mcmc = function(means, change_point, y, n_iterations) {
     change_point_trace = rep(-1, n_iterations)
-    
     for (i in 1:n_iterations) {
-        # TODO: implement a MCMC sampler
-        index = ifelse(runif(1) <= 0.5, 0, 1)
-        # if index = 1, then use K2 to sample C
-        if (index == 1) {
-        proposed_c = rnorm(1, change_point, sd = 5)
-        proposed_c = ifelse(proposed_c >= 0, ceiling(proposed_c), floor(proposed_c))
-        ratio = exp(log_joint(means, proposed_c, y) - log_joint(means, change_point, y))
-        change_point = ifelse(runif(1) < ratio, proposed_c, change_point)
+        # K2 for c
+        proposed_c = floor(rnorm(1, change_point, sd) + 0.5) # discrete normal proposal
+        # proposed_c = rnorm(1, change_point, sd = sd)
+        # proposed_c = ifelse(proposed_c >= change_point, ceiling(proposed_c), floor(proposed_c)) # proposal
+        ratio = exp(log_joint(means, proposed_c, y) - log_joint(means, change_point, y)) # M-H ratio
+        # n = 2 * change_point
+        # proposed_c = rbinom(1, n, 0.5)
+        # ratio = exp(log_joint(means, proposed_c, y) - log_joint(means, change_point, y) + dbinom(proposed_c, n, 0.5, log=TRUE) - dbinom(change_point, n, 0.5, log=TRUE)) # M-H ratio
+        change_point = ifelse(runif(1) < min(ratio,1), proposed_c, change_point) # acceptance
         change_point_trace[i] = change_point
-        }
-        else {
-        proposed_mu = c(rnorm(1, means[[1]], sd = 5), rnorm(1, means[[2]], sd = 5))
+        # K1 for mu
+        proposed_mu = rnorm(2, means, 0.1)
         ratio = exp(log_joint(proposed_mu, change_point, y) - log_joint(means, change_point, y))
-        means = ifelse(runif(1) < ratio, proposed_mu, means)
+        if (runif(1) < min(ratio, 1)) {
+        means = proposed_mu
         }
+        # means = ifelse(runif(1) < min(ratio,1), proposed_mu, means) # !!! VERY ANNOYING BUG
     }
     
     # Return:
@@ -100,14 +101,77 @@ mcmc = function(means, change_point, y, n_iterations) {
 
 \qsol{MCMC correctness testing}
 \begin{enumerate}
-\item xxx
-\item xxx
+\item 
+\begin{lstlisting}[language=R]
+forward = function(synthetic_data_size) {
+    means = runif(2, 0.1, 0.9)
+    change_point = ceiling(runif(1, 0, synthetic_data_size))
+    data = numeric(synthetic_data_size)
+    for (i in 1:synthetic_data_size) {
+        index = ifelse(i >= change_point, 1, 0) + 1
+        data[i] = 5 * rbeta(1, means[index]*5, (1-means[index])*5)
+    } 
+    return(list(
+        means = means,
+        change_point = change_point,
+        data = data
+    ))
+}
+\end{lstlisting}
+
+
+\item 
+\begin{lstlisting}[language=R]
+# 2
+# Note: we use synthetic datasets with only 5 observations to speed things up
+forward_only = replicate(1000, forward_posterior(5, 0))
+with_mcmc = replicate(1000, forward_posterior(5, 200))
+
+# TODO: perform 2-samples t-test or Kolmogorov-Smirnov test
+#       to see if forward_only and with_mcmc follow the same distribution. 
+ks.test(forward_only, with_mcmc)
+# p-value = 0.9135
+\end{lstlisting}
 \end{enumerate}
 
 \qsol{Using your sampler for data analysis}
 \begin{enumerate}
-\item xxx
-\item xxx
+\item 
+\begin{lstlisting}[language=R]
+sd = 6
+initial_mu = runif(2, 0.1, 0.9)
+initial_c = ceiling(runif(1, 0, length(food_data)))
+samples = mcmc(initial_mu, initial_c, food_data, 10000)
+plot(samples$change_point_trace)
+plot(samples$change_point_trace[5000:10000], axes = TRUE, type = "o", col = rgb(red = 0, green = 0, blue = 0, alpha = 0.2))  
+\end{lstlisting}
+\begin{figure}
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{}
+        \caption{Trace plot of all}
+        \label{fig:trace_all}
+    \end{minipage}
+    \begin{minipage}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{}
+        \caption{Trace plot of tail}
+        \label{fig:trace_tail}
+    \end{minipage}
+\end{figure}
+
+\item 
+\begin{lstlisting}[language=R]
+hist(samples$change_point_trace[5000:10000]) 
+\end{lstlisting}
+\begin{figure}
+\centering
+\includegraphics[options]{name}
+\caption{Histogram of tail}
+\label{fig:hist}
+\end{figure}
+
+
 \end{enumerate}
  
 \end{document}
