@@ -28,8 +28,8 @@
 \qsol{A custom MCMC sampler}
 \begin{enumerate}
 \item 
-Denote $\mu = (\mu_1, \mu_2)$ and let MCMC kernel $K(\mu', c' | \mu, c)$ to be the function of $(\mu, c)$ and outputs $(\mu', c')$. Define $K$  to be:
-\[K = K_2 \circ K_1\]where $K_1(\mu, c' |\mu, c)$ is a function of $(\mu, c)$ and outputs $(\mu, c')$ and $K_2(\mu', c' | \mu, c')$ is a function of $(\mu, c')$ and outputs $(\mu', c')$. So then the MCMC algorithm is:
+Denote $\mu = (\mu_1, \mu_2)$ and consider MCMC kernel $K(\mu', c' | \mu, c)$ to be the function of $(\mu, c)$ and outputs $(\mu', c')$. So we could define $K$  to be:
+\[K = K_2 \circ K_1\]where $K_1(\mu, c' |\mu, c)$ is a function of $(\mu, c)$ and outputs $(\mu, c')$ and $K_2(\mu', c' | \mu, c')$ is a function of $(\mu, c')$ and outputs $(\mu', c')$. So then the MCMC algorithm can be ilustrated as follows:
 \begin{algorithm}
     \caption{custom MCMC}
     \label{algo:mixture}
@@ -39,18 +39,18 @@ Denote $\mu = (\mu_1, \mu_2)$ and let MCMC kernel $K(\mu', c' | \mu, c)$ to be t
 
         \For{$i = 1, \ldots, N$}
         \State sample $c' \sim q_c( \cdot | c)$ where $q_c$ could be discrete normal centered at $c$ with hyperparameter sd $\sigma$.
-        \State $r \leftarrow \exp(log\pi(\mu_1, \mu_2, c') - \log\pi(\mu_1, \mu_2, c))$
+        \State $r \leftarrow \exp(\log\pi(\mu_1, \mu_2, c') - \log\pi(\mu_1, \mu_2, c))$
         \State $c_i \leftarrow \Unif(0,1) < (1 \wedge r)$ ? $c'$ : $c$
 
-        \State sample $\mu_1' \sim q_{\mu_1}(\cdot | \mu_1)$ and $\mu_2' \sim q_{\mu_2}(\cdot | \mu_2)$
-        \State $r \leftarrow \exp(log\pi(\mu_1', \mu_2', c') - \log\pi(\mu_1, \mu_2, c'))$
+        \State sample $(\mu_1', \mu_2') \sim q_{\mu}(\cdot | \mu_1, \mu_2)$
+        \State $r \leftarrow \exp(\log\pi(\mu_1', \mu_2', c') - \log\pi(\mu_1, \mu_2, c'))$
         \State $(\mu_1, \mu_2) \leftarrow \Unif(0,1) < (1 \wedge r)$ ? $(\mu_1', \mu_2')$ : $(\mu_1, \mu_2)$
-
-
         \EndFor
+        \State $(\mu_1^{(N)}, \mu_2^{(N)}) = (\mu_1, \mu_2)$
     \end{algorithmic}
-
 \end{algorithm}
+
+Since each kernel $K_i$ will lead to irreducible and invariant MCMC, hence when we composite the kernels, and consider the kernels as transition probabilities, then such kernel composition is just kernel alternation. Hence by the result from lecture, $K$ has irreducibility and invariance.
 
 
 
@@ -147,6 +147,8 @@ plot(samples$change_point_trace[5000:10000], axes = TRUE, type = "o", col = rgb(
         \label{fig:trace_tail}
     \end{minipage}
 \end{figure}
+If we use small standard deviation for the discrete proposal, by the hint from problem one, say less than $5$, then the mixing is not so good as the change point seems to have several convergence points, while if we take the bigger sd, say $26$, then the change point will have a lot fewer convergence points which is shown in Figure \ref{fig:trace_all} and Figure \ref{fig:trace_tail}. This indicates fast mixing. 
+
 
 \item 
 \begin{lstlisting}[language=R]
@@ -158,7 +160,7 @@ hist(samples$change_point_trace[5000:10000])
 \caption{Histogram of tail}
 \label{fig:hist}
 \end{figure}
-
+From the histogram in Figure \ref{fig:hist}, we can see that the posterior distirbution of change point has most of the mass centered around $30$ with the mode around $28$. So if we use MAP estimator to estimate what time could most likely be the change point, then that corresponds to the note given below saying that the true change point is actually $28$.
 
 \end{enumerate}
  
