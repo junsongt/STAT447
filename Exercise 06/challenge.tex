@@ -20,73 +20,90 @@
 
 \qsol{Model}
 Below is the Stan code for model and code for fitting:
-\begin{lstlisting}[language=C]
-// Stan code
-data { 
-  int N; 
-  array[N] int failures;
-  array[N] int launches;
-}
-parameters { 
-  real<lower=0> mu;
-  real<lower=0> s;
-  vector<lower=0, upper=1>[N] probs; 
-}
-model {
-  mu ~ uniform(0,1);
-  s ~ exponential(1.0/10000);
-  probs ~ beta_proportion(mu, s);
-  failures ~ binomial(launches, probs);
-}
+\lstinputlisting[language=C++]{rocket_hierachical.stan}
+\lstinputlisting[language=R]{challenge06.R}
+% \begin{lstlisting}[language=C]
+% // Stan code
+% data { 
+%   int N; 
+%   array[N] int failures;
+%   array[N] int launches;
+% }
+% parameters { 
+%   real<lower=0> mu;
+%   real<lower=0> s;
+%   vector<lower=0, upper=1>[N] probs; 
+% }
+% model {
+%   mu ~ uniform(0,1);
+%   s ~ exponential(1.0/10000);
+%   probs ~ beta_proportion(mu, s);
+%   failures ~ binomial(launches, probs);
+% }
 
-\end{lstlisting}
+% \end{lstlisting}
 
-\begin{lstlisting}[language=R]
-set.seed(2025)
-suppressPackageStartupMessages(require(rstan))
-suppressPackageStartupMessages(require(ggplot2))
-suppressPackageStartupMessages(require(dplyr))
+% \begin{lstlisting}[language=R]
+% set.seed(2025)
+% suppressPackageStartupMessages(require(rstan))
+% suppressPackageStartupMessages(require(ggplot2))
+% suppressPackageStartupMessages(require(dplyr))
 
-df = read.csv(url("https://raw.githubusercontent.com/UBC-Stat-ML/web447/main/data/launches.csv")) %>%
-    select(LV.Type, Suc)  %>%
-    group_by(LV.Type) %>%
-    summarise(
-    numberOfLaunches = n(),
-    numberOfFailures = sum(Suc == "F")
-    )
-ggplot(df, aes(x = numberOfFailures / numberOfLaunches)) +
-    geom_histogram() + 
-    xlab("pi_hat = numberOfFailures_i / numberOfLaunches_i") +
-    geom_rug(alpha = 0.1) + 
-    theme_minimal()
-
-
-
-fit = sampling(stan_model(file.choose()), 
-                data=list(N=nrow(df), failures=df$numberOfFailures, launches=df$numberOfLaunches),
-                iter=5000, control = list(max_treedepth = 15))
-samples = extract(fit)$probs
-xs = df$LV.Type
-n_samples = nrow(samples)
-ys = df$numberOfFailures / df$numberOfLaunches
+% df = read.csv(url("https://raw.githubusercontent.com/UBC-Stat-ML/web447/main/data/launches.csv")) %>%
+%     select(LV.Type, Suc)  %>%
+%     group_by(LV.Type) %>%
+%     summarise(
+%     numberOfLaunches = n(),
+%     numberOfFailures = sum(Suc == "F")
+%     )
+% ggplot(df, aes(x = numberOfFailures / numberOfLaunches)) +
+%     geom_histogram() + 
+%     xlab("pi_hat = numberOfFailures_i / numberOfLaunches_i") +
+%     geom_rug(alpha = 0.1) + 
+%     theme_minimal()
 
 
-# check some specific type of rocket and their failure probabilities
-# choose first 20 rockets
-subset = c(1:20)
-plot(subset, ys[subset],
-        xlab = paste0("Types of rocket: ", xs[subset]), 
-        ylab = "probability of failure")
 
-for (i in 1:n_samples) {
-    lines(subset, samples[i,subset], col = rgb(red = 0, green = 0, blue = 0, alpha = 0.01))
-}
-\end{lstlisting}
+% fit = sampling(stan_model(file.choose()), 
+%                 data=list(N=nrow(df), failures=df$numberOfFailures, launches=df$numberOfLaunches),
+%                 iter=5000, control = list(max_treedepth = 15))
+% samples = extract(fit)$probs
+% xs = df$LV.Type
+% n_samples = nrow(samples)
+% ys = df$numberOfFailures / df$numberOfLaunches
+
+
+% # check some specific type of rocket and their failure probabilities
+% # choose first 20 rockets
+% subset = c(1:20)
+% plot(subset, ys[subset],
+%         xlab = paste0("Types of rocket: ", xs[subset]), 
+%         ylab = "probability of failure")
+
+% for (i in 1:n_samples) {
+%     lines(subset, samples[i,subset], col = rgb(red = 0, green = 0, blue = 0, alpha = 0.01))
+% }
+% \end{lstlisting}
 
 
 \qsol{Disadvantage of the model and improvement}
-
-
+In the model given above, we assume that a certain rocket is launched with a fixed corresponding success probability $p_i$ each time. But in reality that probability might change over time. Naturally, the probability is most likely to increase as the number of launches gets bigger, and we could use logistic function to characterize $p_i$, when the number of launches goes to infinity, $p_i$ will approach to $1$, and when there is no launch, $p_i$ is purely random between $[0,1]$. Given there are $N$ types of rockets, and for each rocket $i$, we observe $n_i$ launches among which $y_i$ successes. so essentially:
+\begin{equation}
+p_{ij} = \text{logit}(k_i \cdot j + b_i), j \in \{1, \ldots, n_i\}
+\end{equation}for some shift $k_i \sim N(0, \sigma_1^2)$ and $b_i \sim N(0, \sigma_2^2)$, then each launch $X_{ij} \sim \Bernoulli(p_{ij})$, and the number of success of rocket $i$: $Y_i$ can be modelled by:
+\begin{equation}
+Y_i = \sum_{j=1}^{n_i} X_{ij}
+\end{equation}and it can be observed that now $Y_i$ is not binomial any more.
+So our full model will be given by:
+\begin{align*}
+& \sigma_1 \sim \Exp(1/10000)\\
+& \sigma_2 \sim \Exp(1/10000)\\
+& k_i \sim N(0, \sigma_1^2)\\
+& b_i \sim N(0, \sigma_2^2)\\
+& p_{ij} = \text{logit}(k_i \cdot j + b_i), j \in \{1, \ldots, n_i\}\\
+&X_{ij} \sim \Bernoulli(p_i)\\
+&Y_i = \sum_{j=1}^{n_i} X_{ij}
+\end{align*}
 % Optional: Feedback on assignment
 % \qsol{Feedback on assignment}
 

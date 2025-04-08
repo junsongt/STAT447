@@ -18,11 +18,6 @@ model {
   failures ~ binomial(launches, probs);
 }
 
-// generated quantities {
-//   int<lower=0, upper=1> pred[N];
-//   for (i in 1:N) {
-//     pred[i] = bernoulli_rng(probs[i])
-//   }
-// }
+
 
 
