@@ -1,0 +1,55 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+\DeclareMathOperator{\KL}{\text{KL}}
+
+
+\begin{document}
+
+
+
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Challenge 10}
+
+
+
+% WRITE YOUR SOLUTION TO THE FIRST QUESTION
+\qsol{KL divergence minimizer} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+\begin{proof}
+\begin{align}
+& \nabla_{\phi}\KL(\pi \parallel q_{\phi}) = \nabla_{\phi} \int\pi(x) \log \frac{\pi(x)}{q_{\phi}(x)} dx = -\nabla_{\phi} \int \pi(x) \log q_{\phi}(x) dx \notag \\
+& = -\nabla_{\phi}\int \pi(x) \eta(\phi)^{\top} T(x) dx + \nabla_{\phi}\int \pi(x) A(\eta(\phi)) dx \label{eqn:1}
+\end{align}
+Note that in (\ref{eqn:1}):
+\begin{equation}
+-\nabla_{\phi}\int \pi(x) \eta(\phi)^{\top} T(x) dx = -\nabla_{\phi} \eta(\phi)^{\top} \E_{\pi} T(X) \label{eqn:2}
+\end{equation}
+and
+\[\nabla_{\phi}\int \pi(x) A(\eta(\phi)) dx = \nabla_{\phi} A(\eta(\phi))\]
+But since $1 = \int q_{\phi}(x) dx = \int h(x) \exp(\eta^{\top} T(x) - A(\eta)) dx$, hence $\exp(A(\eta)) = \int h(x) \exp(\eta^{\top} T(x)) dx$, which means \begin{equation}
+A(\eta(\phi)) = \log \int h(x) \exp(\eta^{\top} T(x)) dx \label{eqn:3}
+\end{equation}
+Therefore by taking derivative on both sides of (\ref{eqn:3}), we have:
+\begin{align}
+& \nabla_{\phi} A(\eta(\phi)) = \nabla_{\phi} \log \int h(x) \exp(\eta(\phi)^{\top} T(x)) dx \notag \\
+& = \frac{\int h(x) \nabla_{\phi} \exp(\eta(\phi)^{\top} T(x)) dx}{\int h(x) \exp(\eta(\phi)^{\top} T(x)) dx} \notag\\
+& = \frac{\int h(x) \nabla_{\phi} \exp(\eta(\phi)^{\top} T(x)) dx}{\exp(A(\eta(\phi)))} \notag \\
+& = \exp(-A(\eta(\phi))) \int h(x)\exp(\eta(\phi)^{\top} T(x))  \cdot \nabla_{\phi} \Big(\eta(\phi)^{\top} T(x)\Big) dx \notag\\
+& = \nabla_{\phi} \eta(\phi)^{\top} \int T(x) \cdot h(x)\exp(\eta(\phi)^{\top} T(x) - A(\eta(\phi))) dx \notag\\
+& = \nabla_{\phi} \eta(\phi)^{\top} \int T(x) \cdot q_{\phi}(x) dx = \nabla_{\phi} \eta(\phi)^{\top} \E_{q_{\phi}} T(X) \label{eqn:4}
+\end{align}
+Hence the result follows from combining (\ref{eqn:2}) and (\ref{eqn:4})
+\end{proof}
+ 
+\end{document}
+
