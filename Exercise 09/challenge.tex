@@ -1,0 +1,39 @@
+% Template for solutions write-ups, STAT 460/560
+% Some basic notation is defined in 'macros/basic-math-macros'
+
+\documentclass{article}
+\input{macros/solutions-template}  % DO NOT CHANGE
+\input{macros/typesetting-macros}  % DO NOT CHANGE
+\input{macros/basic-math-macros} 
+\graphicspath{{./figures/}}
+
+
+
+
+
+
+\begin{document}
+
+
+
+% FILL IN:
+%  - YOUR NAME, YOUR EMAIL (self-explanatory)
+%  - The assignment number goes in ##
+\problemset{Junsong Tang}{junsong.tang@stat.ubc.ca}{Challenge 09}
+
+
+
+% WRITE YOUR SOLUTION TO THE FIRST QUESTION
+\qsol{MH involution} % USE THE SAME TITLES AS ON THE ASSIGNMENT SHEET
+This auxiliary variable: $z$ could be considered as a step taken from the current state: $x$. This step has the information of the step size and also the direction. So essentially, the proposed state: $x' = x + z$. Now to make the map from $(x, z)$ to $(x', z')$ to be an involution, or equivalently to ensure the reversibility, then the step taken from the proposed the state $x'$, which is $z'$ should make the destination back exactly to the current state $x$, therefore naturally, $z' = -z$. Hence we could construct an involution> $T_{\sigma}: \R^2 \to \R^2$ as:
+\begin{equation}
+    T_{\sigma}(x, z) = (x', z') = (x + z, -z) \label{eqn:involution}
+\end{equation}
+To show $T_{\sigma}$ is an involution on $\R^2$, suppose $(x'', z'') = T_{\sigma}\circ T_{\sigma}(x, z)$, so $x'' = x' + z' = x + z + (-z) = x$ and $z'' = -z' = -(-z) = z$. Hence $T_{\sigma}\circ T_{\sigma}(x, z) = (x, z)$.
+
+In terms of $\abs{J_{T_{\sigma}}}$, note that $T_{\sigma}$ is continuously differentiable, so by (\ref{eqn:involution}), we have: \[\abs{J_{T_{\sigma}}} = \abs{\text{det}\begin{bmatrix}
+1 & 1\\0 & -1
+\end{bmatrix}} = 1\]
+ 
+\end{document}
+
