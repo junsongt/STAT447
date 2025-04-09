@@ -8,9 +8,7 @@
 \graphicspath{{./figures/}}
 
 
-
-
-
+\DeclareMathOperator{\KL}{\text{KL}}
 
 
 \begin{document}
@@ -29,10 +27,15 @@
 \begin{enumerate}
 \item 
 \begin{proof}
+\begin{align*}
+& \nabla_{\phi}\KL(\pi \parallel q_{\phi}) = \nabla_{\phi} \int\pi(x) \log \frac{\pi(x)}{q_{\phi}(x)} dx = -\nabla_{\phi} \int \pi(x) \log q_{\phi}(x) dx\\
+& = -\nabla_{\phi} \int \pi(x) \Big(-\frac12 (x-\phi)^2\Big) dx = -\int \pi(x) \nabla_{\phi}\Big(-\frac12 (x-\phi)^2\Big) dx\\
+& = -\int \pi(x) (x - \phi) dx = \phi - \E_{\pi} X
+\end{align*}
 
 \end{proof}
 \item 
-xxx
+Since $\pi$ is hard to sample, so $\E_{\pi} X$ is hardly known numerically, so we want to choose an optimal $q_{\phi^*}$ to approximate $\pi$. But by part (1), $\phi^* = \E_{\pi} X$ is the minimizer of KL divergence, and $\E_{\pi} X$ can be approximated by $\E_{q_{\phi^*}} X$
 \end{enumerate}
     
 
