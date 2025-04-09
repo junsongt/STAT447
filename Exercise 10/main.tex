@@ -35,7 +35,7 @@
 
 \end{proof}
 \item 
-Since $\pi$ is hard to sample, so $\E_{\pi} X$ is hardly known numerically, so we want to choose an optimal $q_{\phi^*}$ to approximate $\pi$. But by part (1), $\phi^* = \E_{\pi} X$ is the minimizer of KL divergence, and $\E_{\pi} X$ can be approximated by $\E_{q_{\phi^*}} X$
+Since $\pi$ is hard to sample, so $\E_{\pi} X$ is hardly known numerically. While $\phi$ is the parameter minimizer we wish to obtain, which is obviously unknown beforehand. So we want to choose an optimal $\phi^*$ so that $q_{\phi^*}$ could approximate $\pi$. But if there is a $\phi^*$ such that $\E_{q_{\phi^*}} X \approx \E_{\pi} X$ then by part (1), $\phi^* = \E_{\pi} X \approx \E_{q_{\phi^*}} X$, so we could use $\hat{\phi^*}$ to estimate $\phi^*$, where $\hat{\phi^*}$ is obtained from \[\hat{\phi^*} = \E_{q_{\hat{\phi^*}}} X\]
 \end{enumerate}
     
 
@@ -45,9 +45,27 @@ Since $\pi$ is hard to sample, so $\E_{\pi} X$ is hardly known numerically, so w
 \qsol{Asymmetric proposal}
 \begin{enumerate}
 \item 
-xxx
+Note that the swap map $T$ has Jacobian $1$, i.e. $\abs{\nabla T(x, v)} = 1$ since the swap is a linear map which corresponds to matrix: $\begin{bmatrix}
+0 & 1\\
+1 & 0
+\end{bmatrix}$, so the M-H ratio $r(x)$ corresponding to the deterministic swap proposal is given by:
+\begin{equation}
+r(x,v) = \frac{\bar{\pi}(v, x)}{\bar{\pi}(x, v)} \cdot \abs{\nabla T(x, v)}= \frac{\pi(v)q(x | v)}{\pi(x)q(v | x)} 
+\end{equation}
+
 \item 
-xxx
+Denote the proposed state for $x$ as $x'$, and $v'$ for $v$. So 
+\begin{equation}
+K_2(x', v'|x, v) = \1_{x=x'}q(v' | x') \label{eqn:kernel}
+\end{equation}
+To show $\bar{\pi}$ invariance, it suffices to check the detailed balance. Note that by (\ref{eqn:kernel}), we have:
+\begin{align*}
+& \bar{\pi}(x, v) K_2(x',v'|x,v) = \pi(x)q(v | x) \1_{x = x'} q(v'|x')\\
+& = \pi(x')q(v'|x') \1_{x = x'} q(v | x)\\
+& = \bar{\pi}(x', v') \1_{x' = x} q(v | x)\\
+& = \bar{\pi}(x', v') K_2(x, v|x',v')
+\end{align*}
+Hence the detailed balance holds, which proves the $\bar{\pi}$ invariance.
 \end{enumerate}
     
 
@@ -56,9 +74,89 @@ xxx
 \qsol{Implementing HMC}
 \begin{enumerate}
 \item 
-xxx
+\begin{lstlisting}[language=R]
+set.seed(1234)
+
+log_gamma = function(x) {
+    -x^2 # = - 0.5 x^2 / sigma^2, i.e. a normal with variance sigma^2 = 0.5
+}
+
+# code from the notes:
+
+gradient = function(x) {
+    -2*x
+}
+
+epsilon = 0.1
+
+kick = function(s) {
+    x = s[[1]]
+    p = s[[2]]
+    c(x, p + epsilon * gradient(x) / 2)
+}
+
+drift = function(s) {
+    x = s[[1]]
+    p = s[[2]]
+    c(x + epsilon * p, p)
+}
+
+flip = function(s) {
+    x = s[[1]]
+    p = s[[2]]
+    c(x, -p)
+}
+
+L = 5
+
+hmc_proposal = function(s) {
+    for (i in 1:L) {
+    s = kick(s)
+    s = drift(s)
+    s = kick(s)
+    }
+    flip(s)
+}
+
+# part to complete below
+
+hamiltonian = function(s) {
+    x = s[[1]]
+    p = s[[2]]
+    # TODO
+    U = -log_gamma(x)
+    K = 0.5*sum(p^2)
+    return(U + K)
+}
+
+hmc = function(initial_x, n_iteration) {
+    current_x = initial_x
+    samples = numeric(n_iteration)
+    for (i in 1:n_iteration) {
+    proposed_x = hmc_proposal(current_x)
+    ratio = exp(hamiltonian(proposed_x) - hamiltonian(current_x))
+    if (runif(1) <= min(ratio, 1)) {
+        samples[i] = proposed_x[1]
+        current_x = c(proposed_x[1], rnorm(1, 0, 1))
+    }
+    else {
+        samples[i] = current_x[1]
+        current_x = c(current_x[1], rnorm(1, 0, 1))
+    }
+    }
+    return(samples)
+}
+\end{lstlisting}
+
+
 \item 
-xxx
+By setting initial values as: $(1.1, 2.3)$,and after running the hmc sampler $10000$ times, we have sample mean: $-0.00267028059630477$ and sample variance: $0.497826278593725$, which are pretty close the true mean $0$ and variance $0.5$. Moreover the sample distribution is also pretty close to the true $N(0, 0.5)$, see Figure \ref{fig:hist}.
+\begin{figure}[H]
+\centering
+\includegraphics[width = \textwidth, height= 0.5\textheight]{hist.png}
+\caption{Histogram of HMC samples}
+\label{fig:hist}
+\end{figure}
 \end{enumerate}
 
  
