@@ -87,10 +87,10 @@ Below is the Stan code for model and code for fitting:
 
 
 \qsol{Disadvantage of the model and improvement}
-In the model given above, we assume that a certain rocket is launched with a fixed corresponding success probability $p_i$ each time. But in reality that probability might change over time. Naturally, the probability is most likely to increase as the number of launches gets bigger, and we could use logistic function to characterize $p_i$, when the number of launches goes to infinity, $p_i$ will approach to $1$, and when there is no launch, $p_i$ is purely random between $[0,1]$. Given there are $N$ types of rockets, and for each rocket $i$, we observe $n_i$ launches among which $y_i$ successes. so essentially:
+In the model given above, we assume that a certain rocket is launched with a fixed corresponding success probability $p_i$ each time. But in reality that probability might change over time. Naturally, the probability is most likely to increase as the number of launches gets bigger. So we could use logistic function to characterize $p_i$, when the number of launches goes to infinity, $p_i$ will approach to $1$, and when there is no launch, $p_i$ is purely random between $[0,1]$. Given there are $N$ types of rockets, and for each rocket $i$, we observe $n_i$ launches among which $y_i$ successes. so essentially:
 \begin{equation}
 p_{ij} = \text{logit}(k_i \cdot j + b_i), j \in \{1, \ldots, n_i\}
-\end{equation}for some shift $k_i \sim N(0, \sigma_1^2)$ and $b_i \sim N(0, \sigma_2^2)$, then each launch $X_{ij} \sim \Bernoulli(p_{ij})$, and the number of success of rocket $i$: $Y_i$ can be modelled by:
+\end{equation}for some shift $k_i \sim N(0, \sigma_1^2)$ and $b_i \sim N(0, \sigma_2^2)$, then each launch result can be modelled by $X_{ij} \sim \Bernoulli(p_{ij})$, and the number of success of rocket $i$: $Y_i$ can be modelled by:
 \begin{equation}
 Y_i = \sum_{j=1}^{n_i} X_{ij}
 \end{equation}and it can be observed that now $Y_i$ is not binomial any more.
@@ -101,11 +101,49 @@ So our full model will be given by:
 & k_i \sim N(0, \sigma_1^2)\\
 & b_i \sim N(0, \sigma_2^2)\\
 & p_{ij} = \text{logit}(k_i \cdot j + b_i), j \in \{1, \ldots, n_i\}\\
-&X_{ij} \sim \Bernoulli(p_i)\\
+&X_{ij} \sim \Bernoulli(p_{ij})\\
 &Y_i = \sum_{j=1}^{n_i} X_{ij}
 \end{align*}
 % Optional: Feedback on assignment
 % \qsol{Feedback on assignment}
-
- 
+Stan model can be implemented as follows:
+\begin{lstlisting}[language=C++]
+data { 
+    int<lower=0> N; // number of types of rocket
+    // array[N] int launch_res;
+    int<lower=0> launches[N];
+    int<lower=0,upper=1> launch_res[N, max(launches)];
+    // matrix<upper=1>[N, max(launches)] launch_res;
+}
+    
+parameters {
+    real<lower=0> sigma1;
+    real<lower=0> sigma2;
+    vector[N] slope;
+    vector[N] intercept;
+}
+    
+transformed parameters {
+    matrix<lower=0, upper=1>[N, max(launches)] probs;
+    for (i in 1:N) {
+        for (j in 1:max(launches)) {
+        probs[i,j] = (launches[i] <= max(launches)) ? inv_logit(slope*j + intercept) : 1;
+        }
+    }
+}
+    
+model {
+    sigma1 ~ exponential(1.0/10000);
+    sigma2 ~ exponential(1.0/10000);
+    slope ~ normal(0, sigma1);
+    intercept ~ normal(0, sigma2);
+    for (i in 1:N) {
+        for (j in 1:launches[i]) {
+            target += (launches[i] <= max(launches)) ? bernoulli_lpmf(launch_res[i,j] | probs[i,j]) : 0;
+        }
+    }
+}
+      
+\end{lstlisting}
+The reason why the number of success for type $i$ rocket: $Y_i$ does not appear in the model is because Stan does not support Poisson-binomial model, so instaed, we model the observed binary sequence $X_{ij}, j \leq n_i, i \leq N$ and put the data in matrix form and pad the rows of uneven length with $-1$.
 \end{document}
