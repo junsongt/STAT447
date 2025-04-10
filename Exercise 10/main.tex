@@ -123,7 +123,6 @@ hmc_proposal = function(s) {
 hamiltonian = function(s) {
     x = s[[1]]
     p = s[[2]]
-    # TODO
     U = -log_gamma(x)
     K = 0.5*sum(p^2)
     return(U + K)
@@ -133,16 +132,16 @@ hmc = function(initial_x, n_iteration) {
     current_x = initial_x
     samples = numeric(n_iteration)
     for (i in 1:n_iteration) {
-    proposed_x = hmc_proposal(current_x)
-    ratio = exp(hamiltonian(proposed_x) - hamiltonian(current_x))
-    if (runif(1) <= min(ratio, 1)) {
-        samples[i] = proposed_x[1]
-        current_x = c(proposed_x[1], rnorm(1, 0, 1))
-    }
-    else {
-        samples[i] = current_x[1]
-        current_x = c(current_x[1], rnorm(1, 0, 1))
-    }
+        proposed_x = hmc_proposal(current_x)
+        ratio = exp(hamiltonian(proposed_x) - hamiltonian(current_x))
+        if (runif(1) <= min(ratio, 1)) {
+            samples[i] = proposed_x[1]
+        }
+        else {
+            samples[i] = current_x[1]
+        }
+        # sampling new momentum
+        current_x = c(samples[i], rnorm(1, 0, 1))
     }
     return(samples)
 }
@@ -150,7 +149,7 @@ hmc = function(initial_x, n_iteration) {
 
 
 \item 
-By setting initial values as: $(1.1, 2.3)$,and after running the hmc sampler $10000$ times, we have sample mean: $-0.00267028059630477$ and sample variance: $0.497826278593725$, which are pretty close the true mean $0$ and variance $0.5$. Moreover the sample distribution is also pretty close to the true $N(0, 0.5)$, see Figure \ref{fig:hist}.
+By setting initial values as: $(1.1, 2.3)$, and after running the HMC sampler $10000$ times, we have sample mean: $-0.00267028059630477$ and sample variance: $0.497826278593725$, which are pretty close the true mean $0$ and variance $0.5$. Moreover the sample distribution is also pretty close to the true $N(0, 0.5)$, see Figure \ref{fig:hist}.
 \begin{figure}[H]
 \centering
 \includegraphics[width = \textwidth, height= 0.5\textheight]{hist.png}
