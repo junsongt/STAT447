@@ -22,20 +22,45 @@ The manifold samplers from the previous literature(\cite{rattle}, \cite{manifold
 In this section, we will introduce the modified sampling method mentioned above in more details. First we start by introducing the notations and problem setting for the context:
 \subsection{Background}
 Consider the $d$-dimensional submanifold embeded in $\R^n$ defined by a set of $m$ constraints: $\Mscr = \{x \in \R^n : F_i(x) = 0, i = 1,\ldots, m\}$, and write $F(x) = [F_1(x),\ldots, F_m(x)]^\top$. Let $\pi$ be the target distribution defined on $\Mscr$ with respect to $d$-dimensional Hausdorff measure so that $\pi(dx) = f(x) \Hcal^{d}(dx)$ for some density $f$.
-Denote $G_x = [\nabla F_1(x), \ldots, \nabla F_m(x)]$, whose column vector is the gradient $\nabla F_j(x)$, which is also equivalent to $DF(x)^\top$ by convention; Note that $G_x$ is a $n \times m$ matrix. Denote $T_x = \text{Null}(G_x^T)$ as the tangent space at $x$ and $N_x = span(G_x)$ as the normal space at $x$. We will refer the readers to the literature \cite{manifoldparent} and \cite{manifoldchild} for more technical details in the algorithm.
+Denote $Q_x = [\nabla F_1(x), \ldots, \nabla F_m(x)]$, whose column vector is the gradient $\nabla F_j(x)$, which is also equivalent to $DF(x)^\top$ by convention; Note that $Q_x$ is a $n \times m$ matrix. Denote $T_x = \text{Null}(G_x^T)$ as the tangent space at $x$ and $N_x = span(G_x)$ as the normal space at $x$. We will refer the readers to the literature \cite{manifoldparent} and \cite{manifoldchild} for more technical details in the algorithm.
 
 \subsection{Modified sampler with autostep}
-\setcounter{algorithm}{1}
-\begin{algorithm}[H]
-\caption{Step size selector $\mu$}
-\begin{algorithmic}[1]
+In this section, we will explain the sketch of the manifold sampler with autostep
 
-\Require State $x \in \mathbb{R}^3$, auxiliary variable $z \in \mathbb{R}^3$, acceptance bounds $(a, b)$, initial step size $\theta_0$
+Below is a sketch of the whole algorithm.
+\begin{algorithm}[H]
+\caption{manifold sampler with autostep}
+\label{algo:manifold_autostep}
+\begin{algorithmic}[1]
+    \Require State $x_0 \in \Mscr$, constraints: $F$, target density: $f$, initial step size parameter: $\sigma_0$. 
+
+    \State $\sigma_x \gets \sigma_0$
+    \State Select the step size $\sigma_x \gets \text{adjust\_step}(x, \sigma_x, F, Q_x, f, a, b)$
+    \State Sample the tangent vector: $v_x \sim N(0, \I)$ where $v_x \in T_x$ and project to $\Mscr$: $y \gets x + \sigma v_x + Q_x\cdot c$
+    \State Find the reverse tangent vector: $v_y \gets \text{Proj}_{T_y}(x-y)$
+    \If{$U \sim \Unif(0,1) > \exp\Big(\log f(y) - \log f(x) - \frac{\norm{v_y}^2-\norm{v_x}^2}{2\sigma_x^2} \Big)$}  \Comment{M-H step}
+        \State Return $x$
+    \EndIf
+    \If{$\text{reversible}(x, y, v_y, Q_y) ==$ false} \Comment{reversibility check}
+        \State Return $x$
+    \EndIf
+    \State \Return $y$
+    \end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[H]
+\caption{Step size selector adjust\_step}
+\label{algo:stepsize_selector}
+\begin{algorithmic}[1]
+\Require State $x \in \mathbb{R}^3$, auxiliary variable $z \in \mathbb{R}^3$, acceptance bounds $(a, b)$, initial step size $\sigma_0$
 
 \State $\theta \gets \theta_0$
-
-\State Compute $l \gets l(x, z, \theta) = \| \theta z \|$
-\State Determine $v = 1$ if $|l| < |\log b|$, $v = -1$ if $|l| > |\log a|$, else $v = 0$
+\While{$\text{solve}() ==$ false}
+    \State $\theta \gets \theta / 2$    
+\EndWhile
+\State Compute $\ell \gets \ell(x, v, \theta)$
+\State Determine $v = 1$ if $|\ell| < |\log b|$, $v = -1$ if $|\ell| > |\log a|$, else $v = 0$
 \State $j = 0$
 \If{$v = 0$}
     \State \Return $j$
@@ -43,90 +68,62 @@ Denote $G_x = [\nabla F_1(x), \ldots, \nabla F_m(x)]$, whose column vector is th
 \While{\textbf{true}}
     \State $j \gets j + v$
     \State $\theta \gets \theta_0 \cdot 2^j$
-    \State Recompute $l = \| \theta z \|$
+    \State $\ell \gets \ell(x, v, \theta)$
     \If{$v = 1$ \textbf{and} $|l| \geq |\log b|$}
         \State \Return $j - 1$
     \ElsIf{$v = -1$ \textbf{and} $|l| \leq |\log a|$}
         \State \Return $j$
     \EndIf
 \EndWhile
-
-
 \end{algorithmic}
 \end{algorithm}
 
 
 \subsection{Distribution Invariance \& correctness check}
-It is shown in \cite{manifoldparent} that the manifold sampler has $\pi$ invariance. But we notice that such algorithms along with many others with deterministic proposals have things in common, which is that they usually have involutive transformation between states to satisfy the reversibility. In MCMC literature, \cite{tierney1998} pointed out that if the transformation between states is deterministic and involutive, then by setting the proposal to be delta measure, the detailed balance condition will follow, which implies the distribution invariance. So we wish to take advantage of this involution framework to show that the manifold sampler has $\pi$ invariance.
+It has already been shown in \cite{manifoldparent} that the usual manifold sampler with fixed step parameter has $\pi$ invariance while autostep has also been shown in \cite{autostep} that
 
-Before that, we will show some important results as a baseline for our justification for $\pi$ invariance of the manifold sampler. Suppose the target distribution is $\pi$ with density $f$ with respect to the Lebesgue measure, and let $x, y$ be the current and next state. The usual Metropolis-Hastings ratio is: $r = \frac{f(y) q(x | y)}{f(x) q(y | x)}$ for some proposal: $q$. But given our state transformation $T$ such that $y = T(x)$ being deterministic and involutive, i.e. $T = \inv{T}$, then by \cite{geyermoller} and \cite{rj_green}, $r(x) = \frac{f(T(x))}{f(x)} \cdot \abs{J_T(x)}$, where $J_T(x)$ is the determinant of Jacobian matrix of $T$. Now we extend this notation a little bit:
+
+Now with combining autostep But we notice that such algorithms along with many others with deterministic proposals have things in common, which is that they usually have involutive transformation between states to satisfy the reversibility. In MCMC literature, \cite{tierney1998} pointed out that if the transformation between states is deterministic and involutive, then by setting the proposal to be delta measure, the detailed balance condition will follow, which implies the distribution invariance. So we wish to take advantage of this involution framework to show that the manifold sampler has $\pi$ invariance.
+
+Before that, we will show some important results as a baseline for our justification for $\pi$ invariance of the manifold sampler. Suppose the target distribution is $\pi$ with density $f$ with respect to the Lebesgue measure, and let $x, y$ be the current and next state. The usual Metropolis-Hastings ratio is: $r = \frac{f(y) q(x | y)}{f(x) q(y | x)}$ for some proposal: $q$. But given our state transformation $T$ such that $y = T(x)$ being deterministic and involutive, i.e. $T = \inv{T}$, then $r(x) = \frac{f(T(x))}{f(x)} \cdot \abs{J_T(x)}$, where $J_T(x)$ is the determinant of Jacobian matrix of $T$. Now we extend this notation a little bit:
 
 Suppose our target distribution $\pi$ is defined w.r.t. measure $\mu$ so that the Radon-Nikodyn derivative: $\frac{d\pi}{d\mu}$ is well-defined, then we define the ratio: \[r(x) = \frac{d T^*\pi}{d\mu}(x) / \frac{d\pi}{d\mu}(x)\]where $T^*\pi$ is the pull-back probability measure such that: $T^*\pi(A) = \pi(T(A))$
 
 If we apply the M-H routine with the new $r(x)$ defined above, then the consequence is that we will have global balance and hence distribution invariance. To show this result, we will introduce the following lemma as an intermediate step.
 
-\begin{lemma}\label{lemma_invol}
-Let $\pi$ be the target distribution on $\Xcal$ with respect to measure $\mu$ and $T$ be an involution on $\Xcal$. Given the current state: $x$ and the next state: $y$ such that $y = T(x)$, and the acceptance probability is defined as:  
-\[\alpha(x, T(x)) = \min\{1, r(x)\}\]
-then we will have the detailed balance equation: 
-\[\frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)\]
-\end{lemma}
-
-\begin{proof}
-First, note that by the definition of pull-back measure, $\frac{d\pi}{d\mu}(y) = \frac{d\pi}{d\mu}(T(x)) = \frac{d T^*\pi}{d\mu}(x)$. Since $T = T^{-1}$, then $x = T^{-1}(y) = T(y)$, so again, $\frac{d\pi}{d\mu}(x) = \frac{d\pi}{d\mu}(T(y)) = \frac{d T^*\pi}{d\mu}(y)$, hence $r(x) \cdot r(y) = 1$.
-
-Therefore, \begin{align*}
-& \frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x) \cdot \min\Big\{\frac{d\pi}{d\mu}(x) / \frac{d T^*\pi}{d\mu}(x), 1\Big\}\\
-& = \frac{d T^*\pi}{d\mu}(x) \cdot\min\Big\{\frac{1}{r(x)}, 1\Big\} = \frac{d T^*\pi}{d\mu}(x) \cdot\min\{r(y), 1\} = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)
-\end{align*}
-
-\end{proof}
-
 % \begin{lemma}\label{lemma_invol}
-% Let $\pi$ be the target distribution with density $f$ with respect Lebesgue measure and $T$ be a continuously differentiable involution on $S \subset \R^n$. Given the current state: $x$ and the next state: $y$, suppose $y = T(x)$, and the acceptance probability is defined as:  
+% Let $\pi$ be the target distribution on $\Xcal$ with respect to measure $\mu$ and $T$ be an involution on $\Xcal$. Given the current state: $x$ and the next state: $y$ such that $y = T(x)$, and the acceptance probability is defined as:  
 % \[\alpha(x, T(x)) = \min\{1, r(x)\}\]
 % then we will have the detailed balance equation: 
-% \[f(x) \cdot \alpha(x, T(x)) = f(T(x))\cdot\alpha(T(x), x) \cdot \abs{J_T(x)}\]
+% \[\frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)\]
 % \end{lemma}
 
 % \begin{proof}
-% Let $J_T(x)$ be the determinant of the Jacobian matrix of $T$, then by inverse function theorem, we have $\abs{J_T(x)} \cdot \abs{J_{\inv{T}}(y)} = 1$, hence $\abs{J_T(x)}\cdot \abs{J_T(y)} = 1$ by assumption: $T = \inv{T}$;
+% First, note that by the definition of pull-back measure, $\frac{d\pi}{d\mu}(y) = \frac{d\pi}{d\mu}(T(x)) = \frac{d T^*\pi}{d\mu}(x)$. Since $T = T^{-1}$, then $x = T^{-1}(y) = T(y)$, so again, $\frac{d\pi}{d\mu}(x) = \frac{d\pi}{d\mu}(T(y)) = \frac{d T^*\pi}{d\mu}(y)$, hence $r(x) \cdot r(y) = 1$.
 
-% Since $r(x) \cdot r(y) = \frac{f(T(x))}{f(x)} \cdot \abs{J_T(x)} \cdot \frac{f(T(y))}{f(y)} \cdot \abs{J_T(y)} = \frac{f(T(y))}{f(x)} = \frac{f(\inv{T}(y))}{f(x)} = \frac{f(x)}{f(x)} = 1$, 
-% hence:\begin{align*}
-% & f(x) \cdot \alpha(x, T(x)) = \min\{f(x) , f(x) \cdot r(x)\}\\
-% &= f(T(x)) \abs{J_T(x)} \min\Big\{\frac{f(x)}{f(T(x)) \cdot \abs{J_T(x)}}, \frac{f(x)\cdot r(x)}{f(T(x)) \cdot \abs{J_T(x)}}\Big\}\\
-% &=  f(T(x)) \abs{J_T(x)} \min\Big\{\frac{1}{r(x)}, \frac{r(x)}{r(x)} \Big\}\\
-% &=  f(T(x)) \abs{J_T(x)} \min\{r(T(x)), 1\}\\
-% &=  f(T(x)) \abs{J_T(x)} \alpha(T(x), x)
+% Therefore, \begin{align*}
+% & \frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x) \cdot \min\Big\{\frac{d\pi}{d\mu}(x) / \frac{d T^*\pi}{d\mu}(x), 1\Big\}\\
+% & = \frac{d T^*\pi}{d\mu}(x) \cdot\min\Big\{\frac{1}{r(x)}, 1\Big\} = \frac{d T^*\pi}{d\mu}(x) \cdot\min\{r(y), 1\} = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)
 % \end{align*}
 
 % \end{proof}
 
 
-\begin{theorem}\label{thm_invariance}
-Let $X$ be the current state and $Y$ be the next state and $X$ has distribution: $\pi$ which has density with respect to measure $\mu$. Suppose $T$ is an involution such that $Y = T(X)$. Define the transition kernel: $K(x, E) = \alpha \cdot \1_E(T(x)) + (1 - \alpha) \1_E(x)$ for any event $E$. Then the global balance holds:
-\[\P(Y \in A) = \pi(A) = \int_{x \in \Xcal} \pi(dx) K(x, A)\]
-\end{theorem}
+% \begin{theorem}\label{thm_invariance}
+% Let $X$ be the current state and $Y$ be the next state and $X$ has distribution: $\pi$ which has density with respect to measure $\mu$. Suppose $T$ is an involution such that $Y = T(X)$. Define the transition kernel: $K(x, E) = \alpha \cdot \1_E(T(x)) + (1 - \alpha) \1_E(x)$ for any event $E$. Then the global balance holds:
+% \[\P(Y \in A) = \pi(A) = \int_{x \in \Xcal} \pi(dx) K(x, A)\]
+% \end{theorem}
 
-\begin{proof}
-\begin{align*}
-& \int_{x \in \Xcal} \pi(dx) K(x, A) = \int_{x \in \Xcal} \pi(dx) [\alpha\1_A(T(x)) + (1-\alpha)\1_A(x)]\\
-& = \int_{x \in \Xcal} \pi(dx) \alpha(x, T(x)) \1_A(T(x)) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-& = \int_{x \in \Xcal} \frac{d T^*\pi}{d\mu}(x) \alpha(T(x), x)\1_A(T(x)) d\mu(x) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-& = \int_{y \in \Xcal} \pi(dy) \alpha(y, \inv{T}(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-& = \int_{y \in \Xcal} \pi(dy) \alpha(y, T(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-& = \int_{y \in \Xcal} \pi(dy) \1_A(y) = \pi(A)\\
-\end{align*}
-
-% & \int_{x \in S} \pi(dx) K(x, A) = \int_{x \in S} \pi(dx) [\alpha\1_A(T(x)) + (1-\alpha)\1_A(x)]\\
-% & = \int_{x \in S} \pi(dx) \alpha(x, T(x)) \1_A(T(x)) + \int_{x \in S} \pi(dx) (1 - \alpha) \1_A(x)\\
-% & = \int_{x \in S} f(T(x)) \alpha(T(x), x) \abs{J_T(x)}\1_A(T(x)) dx + \int_{x \in S} \pi(dx) (1 - \alpha) \1_A(x)\\
-% & = \int_{y \in S} f(y) \alpha(y, \inv{T}(y)) \1_A(y) dy + \int_{x \in S} \pi(dx) (1 - \alpha) \1_A(x)\\
-% & = \int_{y \in S} \pi(dy) \alpha(y, T(y)) \1_A(y) + \int_{x \in S} \pi(dx) (1 - \alpha) \1_A(x)dx\\
-% & = \int_{y \in S} \pi(dy) \1_A(y) dy = \pi(A)\\
+% \begin{proof}
+% \begin{align*}
+% & \int_{x \in \Xcal} \pi(dx) K(x, A) = \int_{x \in \Xcal} \pi(dx) [\alpha\1_A(T(x)) + (1-\alpha)\1_A(x)]\\
+% & = \int_{x \in \Xcal} \pi(dx) \alpha(x, T(x)) \1_A(T(x)) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% & = \int_{x \in \Xcal} \frac{d T^*\pi}{d\mu}(x) \alpha(T(x), x)\1_A(T(x)) d\mu(x) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% & = \int_{y \in \Xcal} \pi(dy) \alpha(y, \inv{T}(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% & = \int_{y \in \Xcal} \pi(dy) \alpha(y, T(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% & = \int_{y \in \Xcal} \pi(dy) \1_A(y) = \pi(A)\\
 % \end{align*}
-\end{proof}
+% \end{proof}
 
 
 
@@ -237,7 +234,7 @@ Next, we attempted to apply the Auto-Step MCMC algorithm in \cite{autostep} to t
 
 \textbf{Explanation of changes in Algorithm 1: One iteration of AutoStep MCMC}
 
-The initial value $x$ is extended from a two-dimensional vector to a three-dimensional vector $x \in \mathbb{R}^3$. The auxiliary variable $z$ is also extended to a three-dimensional vector $z \in \mathbb{R}^3$. Correspondingly, $m$ is extended from a two-dimensional normal distribution $N(0, I_2)$ to a three-dimensional normal distribution $N(0, I_3)$, where $I_3$ is a $3 \times 3$ identity matrix. Additionally, the step size distribution $\eta$ and the transformation $f_\theta$ are both applied in $\mathbb{R}^3$.
+The initial value $x$ is extended from a two-dimensional vector to a three-dimensional vector $x \in \mathbb{R}^3$. The auxiliary variable $z$ is also extended to a three-dimensional vector $z \in \mathbb{R}^3$. Correspondingly, $m$ is extended from a two-dimensional normal distribution $N(0, I_2)$ to a three-dimensional normal distribution $N(0, I_3)$, where $I_3$ is a $3 \times 3$ identity matrix. Additionally, the step size distribution $\eta$ and the transformation $f_\sigma$ are both applied in $\mathbb{R}^3$.
 
 
 
@@ -245,9 +242,9 @@ The initial value $x$ is extended from a two-dimensional vector to a three-dimen
 \textbf{Explanation of changes}
 
 
-The function $l$ is used to evaluate whether the current step size $\theta$ is appropriate and to determine whether the step size needs to be adjusted. Specifically, $l$ compares the step size with the acceptance bounds $a$ and $b$ to decide whether the step size should be increased or decreased.
+The function $l$ is used to evaluate whether the current step size $\sigma$ is appropriate and to determine whether the step size needs to be adjusted. Specifically, $l$ compares the step size with the acceptance bounds $a$ and $b$ to decide whether the step size should be increased or decreased.
 
-Since the norm is smooth and continuous, using the norm to evaluate the current step size $\theta$ helps the step size selector maintain stability during adjustment, avoiding sudden and drastic changes. Moreover, the norm is symmetric, ensuring that the step size adjustment is fair in all directions without bias toward any particular direction.
+Since the norm is smooth and continuous, using the norm to evaluate the current step size $\sigma$ helps the step size selector maintain stability during adjustment, avoiding sudden and drastic changes. Moreover, the norm is symmetric, ensuring that the step size adjustment is fair in all directions without bias toward any particular direction.
 
 
 
@@ -342,11 +339,11 @@ where \(R\) and \(r\) are positive real numbers, and \(R > r\).
 
 Further, the parametric representation of \(T\) in cylindrical coordinates is:
 \[
-T = \{(R + r \cos(\phi))\cos(\theta), (R + r \cos(\phi))\sin(\theta), r \sin(\phi): \theta \in [0, 2\pi), \phi \in [0, 2\pi)\}
+T = \{(R + r \cos(\phi))\cos(\sigma), (R + r \cos(\phi))\sin(\sigma), r \sin(\phi): \sigma \in [0, 2\pi), \phi \in [0, 2\pi)\}
 \]
-where \(\theta\) is the toroidal angle, \(\phi\) is the poloidal angle, and the corresponding marginal densities are:
+where \(\sigma\) is the toroidal angle, \(\phi\) is the poloidal angle, and the corresponding marginal densities are:
 \[
-g_\theta(\theta) = \frac{1}{2\pi}, \quad g_\phi(\phi) = \frac{1}{2\pi} \left(1 + \frac{r}{R} \cos(\phi)\right).
+g_\sigma(\sigma) = \frac{1}{2\pi}, \quad g_\phi(\phi) = \frac{1}{2\pi} \left(1 + \frac{r}{R} \cos(\phi)\right).
 \]
 
 We used the previously discussed algorithm to perform MCMC sampling on this torus. The sample size is set to \(N = 10^7\), the major radius \(R = 1\), the minor radius \(r = 0.5\), and the step size scale \(\sigma = 0.05\). During the \(10^7\) sampling steps, one in every 100 points is recorded. Figure 3 Part (a) shows the sampling result, which matches the theoretical torus structure well.
@@ -362,8 +359,8 @@ We used the previously discussed algorithm to perform MCMC sampling on this toru
         
     
 %     \hspace{0.03\textwidth} 
-%     \subfigure[Empirical distribution of $\theta$]{
-%         \includegraphics[width=0.3\textwidth]{torus/empirical distribution of theta torus.jpg}
+%     \subfigure[Empirical distribution of $\sigma$]{
+%         \includegraphics[width=0.3\textwidth]{torus/empirical distribution of sigma torus.jpg}
 %         \label{fig:image2}
 %     }
 %     \hspace{0.03\textwidth}
@@ -376,15 +373,15 @@ We used the previously discussed algorithm to perform MCMC sampling on this toru
 % \end{figure}
 
 
-Figure 3 parts (b) and (c) illustrate the comparison between the empirical marginal distributions and the theoretical distributions. The marginal distributions of the toroidal angle \(\theta\) and the poloidal angle \(\phi\) align well with the theoretical distributions, confirming the correctness of the MCMC sampling results on the torus.
+Figure 3 parts (b) and (c) illustrate the comparison between the empirical marginal distributions and the theoretical distributions. The marginal distributions of the toroidal angle \(\sigma\) and the poloidal angle \(\phi\) align well with the theoretical distributions, confirming the correctness of the MCMC sampling results on the torus.
 
 
 % \begin{figure}[h]
 %     \centering
 %     \begin{minipage}{0.4\textwidth}
 %         \centering
-%         \includegraphics[width=0.8\textwidth]{torus/ACF of theta torus.jpg}
-%         \caption{ACF of $\theta$ in torus}
+%         \includegraphics[width=0.8\textwidth]{torus/ACF of sigma torus.jpg}
+%         \caption{ACF of $\sigma$ in torus}
 %         \label{fig:image1}
 %     \end{minipage}
 %     \hspace{0.03\textwidth}
@@ -402,15 +399,15 @@ Figure 3 parts (b) and (c) illustrate the comparison between the empirical margi
 %     \centering
 %     \begin{floatrow}
 
-%         \ffigbox{\includegraphics[width=0.3\textwidth]{torus/ACF of theta torus.jpg}}%
-%         {\caption{ACF of $\theta$ in torus}\label{fig:image1}}
+%         \ffigbox{\includegraphics[width=0.3\textwidth]{torus/ACF of sigma torus.jpg}}%
+%         {\caption{ACF of $\sigma$ in torus}\label{fig:image1}}
 %         \ffigbox{\includegraphics[width=0.3\textwidth]{torus/ACF of phi torus.jpg}}%
 %         {\caption{ACF of $\phi$  in torus}\label{fig:image2}}
 %     \end{floatrow}
     
 %     \label{fig:side_by_side}
 % \end{figure}
-Figures 4 and 5 show the autocorrelation functions for the angle of the ring plane $\theta$ and the polar angle $\phi$. The angle $\theta$ of the samples still exhibits a significant correlation within a small range of lags (e.g. 1 to 5), and the polar angle $\phi$ of the samples still exhibits a significant correlation within a small range of lags (e.g., 1 to 15). Subsequently, as the lag increases, the autocorrelation rapidly decreases and quickly approaches zero. This implies that the sequence can be regarded as essentially independent after short intervals, indicating that the mixing of the MCMC chain is good. Although adjacent samples have some correlation, the dependence between samples generally disappears quickly, allowing us to obtain approximately independent samples after short intervals, which helps improve the effectiveness of statistical inference.
+Figures 4 and 5 show the autocorrelation functions for the angle of the ring plane $\sigma$ and the polar angle $\phi$. The angle $\sigma$ of the samples still exhibits a significant correlation within a small range of lags (e.g. 1 to 5), and the polar angle $\phi$ of the samples still exhibits a significant correlation within a small range of lags (e.g., 1 to 15). Subsequently, as the lag increases, the autocorrelation rapidly decreases and quickly approaches zero. This implies that the sequence can be regarded as essentially independent after short intervals, indicating that the mixing of the MCMC chain is good. Although adjacent samples have some correlation, the dependence between samples generally disappears quickly, allowing us to obtain approximately independent samples after short intervals, which helps improve the effectiveness of statistical inference.
 
 By calculation, the Effective Sample Size (ESS) and sampler performance (ESS per unit compute time) for both Auto-Step MCMC and MCMC on Constraint Manifolds are shown in following table:
 
@@ -419,11 +416,11 @@ By calculation, the Effective Sample Size (ESS) and sampler performance (ESS per
 \hline
 Method & parameter &Sample size& ESS & ESS/sample & ESS/sec & (ESS/sec)/sample  \\
 \hline
-\multirow{2}{5em}{Auto-Step MCMC} & $\theta $& 99,000 & 12529.71 & 12.656\% & 10528.6422 & 10.635\%\\ 
+\multirow{2}{5em}{Auto-Step MCMC} & $\sigma $& 99,000 & 12529.71 & 12.656\% & 10528.6422 & 10.635\%\\ 
 
 &$\phi$ & 99,000 & 43181.69 & 43.618\%& 36285.3148 & 36.652\%\\
 \hline
-\multirow{2}{9em}{MCMC on ConstraintManifolds} & $\theta$ & 99,000 & 22618.35 &22.847\% & 210.9588 & 0.213\%\\
+\multirow{2}{9em}{MCMC on ConstraintManifolds} & $\sigma$ & 99,000 & 22618.35 &22.847\% & 210.9588 & 0.213\%\\
 & $\psi$ & 99,000 & 66519.56 & 67.191\% & 620.4203 & 0.627\% \\ 
 
 
