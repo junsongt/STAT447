@@ -138,15 +138,15 @@ def adjust_step(x, v_x, s, q, f, G, G_x, L_x, nmax, eps, a, b):
         j = j + delta
         s = s * 2 ** (delta)
         l = logratio(x, v_x, q, G, G_x, L_x, nmax, eps, f, s)
-        delta = (1 if abs(l) < math.log(b) else 0) - (
-            1 if abs(l) > abs(math.log(a)) else 0
-        )
+        # delta = (1 if abs(l) < math.log(b) else 0) - (
+        #     1 if abs(l) > abs(math.log(a)) else 0
+        # )
         if delta == 1 and abs(l) >= abs(math.log(b)):
             return s / 2
         elif delta == -1 and abs(l) <= abs(math.log(a)):
             return s
-        else:
-            return s
+        # else:
+        #     return s
 
 
 # ===================================================================================
@@ -289,106 +289,106 @@ def contour_sampler(manifold_ker, sigma, s, k, n_iter):
 
 # test case
 
-# # check scatter plot
-# samples = contour_sampler(manifold_auto, sigma, s, k, n_iter)
-# # Convert samples to a NumPy array for further analysis
-# samples = np.array(samples)
-# ref_samples = np.random.multivariate_normal(mean=np.zeros(2), cov=np.diag(sigma), size=n_iter)
+# check scatter plot
+samples = contour_sampler(manifold_auto, sigma, s, k, n_iter)
+# Convert samples to a NumPy array for further analysis
+samples = np.array(samples)
+ref_samples = np.random.multivariate_normal(mean=np.zeros(2), cov=np.diag(sigma), size=n_iter)
 
 
-# # Create grid for contour plot of the multivariate normal density
-# x_grid = np.linspace(-4, 4, 100)
-# y_grid = np.linspace(-4, 4, 100)
-# X, Y = np.meshgrid(x_grid, y_grid)
-# pos = np.dstack((X, Y))
-# Z = multivariate_normal([0, 0], np.diag(sigma)).pdf(pos)
+# Create grid for contour plot of the multivariate normal density
+x_grid = np.linspace(-4, 4, 100)
+y_grid = np.linspace(-4, 4, 100)
+X, Y = np.meshgrid(x_grid, y_grid)
+pos = np.dstack((X, Y))
+Z = multivariate_normal([0, 0], np.diag(sigma)).pdf(pos)
 
-# # Plotting the samples
-# plt.figure(figsize=(8, 6))
-# plt.scatter(samples[:, 0], samples[:, 1], c="blue", alpha=0.5, label="Samples")
-# plt.scatter(ref_samples[:, 0], samples[:, 1], c="green", alpha=0.5, label="Samples")
-# # Plot contours of the reference multivariate normal
-# contour = plt.contour(X, Y, Z, levels=10, cmap="viridis", alpha=0.7)
-# # Add labels, legend, and grid
-# plt.clabel(contour, inline=True, fontsize=8)
-# plt.title("Samples from the manifold sampler kernel & mvnormal")
-# plt.xlabel("x")
-# plt.ylabel("y")
-# plt.grid()
-# plt.axhline(0, color="gray", linestyle="--", linewidth=0.7)
-# plt.axvline(0, color="gray", linestyle="--", linewidth=0.7)
-# plt.legend(["manifold sampler kernel", "mvnormal"], loc="lower right")
-# plt.show()
-
-# print(stats.kstest(samples[:,0], ref_samples[:,0]))
-# print(stats.kstest(samples[:,1], ref_samples[:,1]))
-
-
-# check the joint p-values are uniform([0,1]^2)
-x_pvals = []
-y_pvals = []
-for i in range(3):
-    contour_samples = contour_sampler(manifold_auto, sigma, s, k, n_iter)
-    contour_samples = np.array(contour_samples)
-    real_samples = np.random.multivariate_normal(
-        mean=np.zeros(2), cov=np.diag(sigma), size=n_iter
-    )
-    p_val_x = stats.kstest(contour_samples[:, 0], real_samples[:, 0])[1]
-    p_val_y = stats.kstest(contour_samples[:, 1], real_samples[:, 1])[1]
-    print("x_pval: ", p_val_x, "y_pval: ", p_val_y)
-    x_pvals.append(p_val_x)
-    y_pvals.append(p_val_y)
-
-    # Compute 2D histogram for samples
-bins = 20  # Number of bins for the histogram
-hist, x_edges, y_edges = np.histogram2d(
-    x_pvals, y_pvals, bins=bins, range=[[0, 1], [0, 1]], density=True
-)
-
-# Create grid for plotting
-x_centers = (x_edges[:-1] + x_edges[1:]) / 2
-y_centers = (y_edges[:-1] + y_edges[1:]) / 2
-X, Y = np.meshgrid(x_centers, y_centers)
-
-# Uniform density value for comparison
-# uniform_density = np.ones_like(hist) / (bins * bins)  # Adjusted for equal-area bins
-uniform_density = np.ones_like(hist)
-uniform_density_scaled = uniform_density * hist.mean()
-
-# 3D Plot: Observed Histogram vs Uniform Density
-fig = plt.figure(figsize=(10, 8))
-ax = fig.add_subplot(111, projection="3d")
-
-# Plot observed density as bars
-for i in range(hist.shape[0]):
-    for j in range(hist.shape[1]):
-        ax.bar3d(
-            x_centers[i],  # x-coordinate
-            y_centers[j],  # y-coordinate
-            0,  # z-base
-            x_edges[1] - x_edges[0],  # bar width (x)
-            y_edges[1] - y_edges[0],  # bar width (y)
-            hist[i, j],  # bar height
-            color="blue",
-            alpha=0.7,
-        )
-
-# Plot uniform density as a surface
-uniform_surface = ax.plot_surface(X, Y, uniform_density_scaled, color="red", alpha=0.5)
-
-# Customize the plot
-ax.set_title("3D Comparison: Observed vs Uniform Density")
-ax.set_xlabel("X-axis (x_pvals)")
-ax.set_ylabel("Y-axis (y_pvals)")
-ax.set_zlabel("Density/Frequency")
-
-# Add a legend using ProxyArtists
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
-
-# Define proxy artists
-blue_bar = Patch(color="blue", alpha=0.7, label="Observed Histogram")
-red_surface = Patch(color="red", alpha=0.5, label="Uniform Density")
-ax.legend(handles=[blue_bar, red_surface], loc="upper right")
-
+# Plotting the samples
+plt.figure(figsize=(8, 6))
+plt.scatter(samples[:, 0], samples[:, 1], c="blue", alpha=0.5, label="Samples")
+plt.scatter(ref_samples[:, 0], samples[:, 1], c="green", alpha=0.5, label="Samples")
+# Plot contours of the reference multivariate normal
+contour = plt.contour(X, Y, Z, levels=10, cmap="viridis", alpha=0.7)
+# Add labels, legend, and grid
+plt.clabel(contour, inline=True, fontsize=8)
+plt.title("Samples from the manifold sampler kernel & mvnormal")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.grid()
+plt.axhline(0, color="gray", linestyle="--", linewidth=0.7)
+plt.axvline(0, color="gray", linestyle="--", linewidth=0.7)
+plt.legend(["manifold sampler kernel", "mvnormal"], loc="lower right")
 plt.show()
+
+print(stats.kstest(samples[:,0], ref_samples[:,0]))
+print(stats.kstest(samples[:,1], ref_samples[:,1]))
+
+
+# # check the joint p-values are uniform([0,1]^2)
+# x_pvals = []
+# y_pvals = []
+# for i in range(3):
+#     contour_samples = contour_sampler(manifold_auto, sigma, s, k, n_iter)
+#     contour_samples = np.array(contour_samples)
+#     real_samples = np.random.multivariate_normal(
+#         mean=np.zeros(2), cov=np.diag(sigma), size=n_iter
+#     )
+#     p_val_x = stats.kstest(contour_samples[:, 0], real_samples[:, 0])[1]
+#     p_val_y = stats.kstest(contour_samples[:, 1], real_samples[:, 1])[1]
+#     print("x_pval: ", p_val_x, "y_pval: ", p_val_y)
+#     x_pvals.append(p_val_x)
+#     y_pvals.append(p_val_y)
+
+#     # Compute 2D histogram for samples
+# bins = 20  # Number of bins for the histogram
+# hist, x_edges, y_edges = np.histogram2d(
+#     x_pvals, y_pvals, bins=bins, range=[[0, 1], [0, 1]], density=True
+# )
+
+# # Create grid for plotting
+# x_centers = (x_edges[:-1] + x_edges[1:]) / 2
+# y_centers = (y_edges[:-1] + y_edges[1:]) / 2
+# X, Y = np.meshgrid(x_centers, y_centers)
+
+# # Uniform density value for comparison
+# # uniform_density = np.ones_like(hist) / (bins * bins)  # Adjusted for equal-area bins
+# uniform_density = np.ones_like(hist)
+# uniform_density_scaled = uniform_density * hist.mean()
+
+# # 3D Plot: Observed Histogram vs Uniform Density
+# fig = plt.figure(figsize=(10, 8))
+# ax = fig.add_subplot(111, projection="3d")
+
+# # Plot observed density as bars
+# for i in range(hist.shape[0]):
+#     for j in range(hist.shape[1]):
+#         ax.bar3d(
+#             x_centers[i],  # x-coordinate
+#             y_centers[j],  # y-coordinate
+#             0,  # z-base
+#             x_edges[1] - x_edges[0],  # bar width (x)
+#             y_edges[1] - y_edges[0],  # bar width (y)
+#             hist[i, j],  # bar height
+#             color="blue",
+#             alpha=0.7,
+#         )
+
+# # Plot uniform density as a surface
+# uniform_surface = ax.plot_surface(X, Y, uniform_density_scaled, color="red", alpha=0.5)
+
+# # Customize the plot
+# ax.set_title("3D Comparison: Observed vs Uniform Density")
+# ax.set_xlabel("X-axis (x_pvals)")
+# ax.set_ylabel("Y-axis (y_pvals)")
+# ax.set_zlabel("Density/Frequency")
+
+# # Add a legend using ProxyArtists
+# from matplotlib.lines import Line2D
+# from matplotlib.patches import Patch
+
+# # Define proxy artists
+# blue_bar = Patch(color="blue", alpha=0.7, label="Observed Histogram")
+# red_surface = Patch(color="red", alpha=0.5, label="Uniform Density")
+# ax.legend(handles=[blue_bar, red_surface], loc="upper right")
+
+# plt.show()

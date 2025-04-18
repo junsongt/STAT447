@@ -84,15 +84,15 @@ def adjust_step(x, v_x, s, q, f, G, G_x, L_x, nmax, eps, a, b):
         j = j + delta
         s = s * 2 ** (delta)
         l = logratio(x, v_x, q, G, G_x, L_x, nmax, eps, f, s)
-        delta = (1 if abs(l) < math.log(b) else 0) - (
-            1 if abs(l) > abs(math.log(a)) else 0
-        )
+        # delta = (1 if abs(l) < math.log(b) else 0) - (
+        #     1 if abs(l) > abs(math.log(a)) else 0
+        # )
         if delta == 1 and abs(l) >= abs(math.log(b)):
             return s / 2
         elif delta == -1 and abs(l) <= abs(math.log(a)):
             return s
-        else:
-            return s
+        # else:
+        #     return s
 
 
 # ===================================================================================
@@ -195,7 +195,7 @@ A = 2
 B = 1
 C = 1.5
 
-n_iter = 5000  # number of samples
+n_iter = 1000  # number of samples
 # constraints are {h_i(x) : h_i(x) >= 0}
 q = lambda x: np.array([x[0] ** 2 / A**2 + x[1] ** 2 / B**2 + x[2] ** 2 / C**2 - 1])
 # gradient matrix as a function of x
