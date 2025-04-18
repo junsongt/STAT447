@@ -104,10 +104,146 @@ def manifold_sampler(x, q, f, G, G_x, L_x, s, nmax, eps):
     return {"pt": y, "grad": G_y, "chol": L_y}
 
 
+# =================================================================================
+def logratio(x, v_x, q, G, G_x, L_x, nmax, eps, f, s):
+    proj = newton_solve(x + s * v_x, q, G_x, L_x, nmax, eps)
+    while proj["flag"] == False:
+        s = s / 2
+        proj = newton_solve(x + s * v_x, q, G_x, L_x, nmax, eps)
+    y = proj["pt"]
+    G_y = G(y)
+    L_y = la.cholesky(G_y.T @ G_y, lower=True)
+    delta_xy = x - y
+    xi = la.solve_triangular(
+        L_y.T, la.solve_triangular(L_y, G_y.T @ delta_xy, lower=True), lower=False
+    )
+    v_y = (delta_xy - G_y @ xi) / s
+    l = (
+        math.log(f(y))
+        - math.log(f(x))
+        - (np.linalg.norm(v_y) ** 2 - np.linalg.norm(v_x) ** 2) / 2
+    )
+    # return {"l":l, "pt":y, "tan":v_y, "grad":G_y, "chol":L_y}
+    return l
+
+
+# ==================================================================================
+def adjust_step(x, v_x, s, q, f, G, G_x, L_x, nmax, eps, a, b):
+    l = logratio(x, v_x, q, G, G_x, L_x, nmax, eps, f, s)
+    delta = (1 if abs(l) < math.log(b) else 0) - (1 if abs(l) > abs(math.log(a)) else 0)
+    j = 0
+    if delta == 0:
+        return s
+    while True:
+        j = j + delta
+        s = s * 2 ** (delta)
+        l = logratio(x, v_x, q, G, G_x, L_x, nmax, eps, f, s)
+        delta = (1 if abs(l) < math.log(b) else 0) - (
+            1 if abs(l) > abs(math.log(a)) else 0
+        )
+        if delta == 1 and abs(l) >= abs(math.log(b)):
+            return s / 2
+        elif delta == -1 and abs(l) <= abs(math.log(a)):
+            return s
+        else:
+            return s
+
+
+# ===================================================================================
+def manifold_auto(x, q, f, G, G_x, L_x, s, nmax, eps):
+    # guard inf case
+    if np.any(np.isnan(x)) or np.any(np.isinf(x)):
+        print("Invalid point encountered:", x)
+        return {"pt": x, "grad": G_x, "chol": L_x}  # Reject invalid points early
+
+    d = len(x)
+    z = np.random.normal(0, 1, d)
+    xi = la.solve_triangular(
+        L_x.T,
+        la.solve_triangular(L_x, G_x.T @ z, lower=True),
+        lower=False,
+    )
+    v_x = z - G_x @ xi
+
+    # guard inf case
+    if np.any(np.isnan(v_x)) or np.any(np.isinf(v_x)):
+        print("Invalid tangent vector v_x:", v_x)
+        # Reject the step and return the current point
+        return {"pt": x, "grad": G_x, "chol": L_x}
+
+    #  auto-adjust step size: s
+    D = np.random.uniform(0, 1, 2)
+    a = min(D)
+    b = max(D)
+    s = adjust_step(x, v_x, s, q, f, G, G_x, L_x, nmax, eps, a, b)
+
+    proj_for = newton_solve(x + s * v_x, q, G_x, L_x, nmax, eps)
+    if not proj_for["flag"]:
+        return {"pt": x, "grad": G_x, "chol": L_x, "step": s}  # Projection failed
+
+    y = proj_for["pt"]
+
+    G_y = G(y)
+    L_y = la.cholesky(G_y.T @ G_y, lower=True)
+    delta_xy = x - y
+    xi = la.solve_triangular(
+        L_y.T, la.solve_triangular(L_y, G_y.T @ delta_xy, lower=True), lower=False
+    )
+    v_y = (delta_xy - G_y @ xi) / s
+    # p_vx = math.exp(-np.linalg.norm(v_x)**2 / 2)
+    # p_vy = math.exp(-np.linalg.norm(v_y)**2 / 2)
+    # alpha = min(1, (f(y) * p_vy) / (f(x) * p_vx))
+    alpha = min(
+        1,
+        math.exp(
+            math.log(f(y))
+            - math.log(f(x))
+            - (np.linalg.norm(v_y) ** 2 - np.linalg.norm(v_x) ** 2) / 2
+        ),
+    )
+    # print("alpha: ", alpha)
+    u = np.random.uniform(0, 1)
+    # M-H Rejection
+    if u > alpha:
+        return {"pt": x, "grad": G_x, "chol": L_x, "step": s}
+
+    proj_rev = newton_solve(y + s * v_y, q, G_y, L_y, nmax, eps)
+    if not reversible(proj_rev, x, eps):
+        return {"pt": x, "grad": G_x, "chol": L_x, "step": s}
+    # # Reverse projection failed
+    # if not proj_rev["flag"]:
+    #     return {"pt": x,"grad": G_x,"chol": L_x,"step": s}
+
+    # xx = proj_rev["pt"]
+    # # Reject due to distance criterion
+    # if la.norm(xx - x) > eps:
+    #     return {"pt": x,"grad": G_x,"chol": L_x,"step": s}
+    G_x = G_y
+    L_x = L_y
+
+    return {"pt": y, "grad": G_y, "chol": L_y, "step": s}
+
+
+def reversible(solve_obj, x, eps):
+    # Reverse projection failed
+    if solve_obj["flag"] == False:
+        # print("reverse projection failed!")
+        return False
+    xx = solve_obj["pt"]
+    # Reject due to convergence at wrong point
+    if la.norm(xx - x) > eps:
+        # print("convergence at wrong point!")
+        return False
+    # print("reversibility check passed!")
+    return True
+
+
+# =======================================================================================
 # Parameters
+np.random.seed(1)
 n_iter = 1000
 sigma = np.array([1.0, 2.0])  # Diagonal covariance matrix
-s = 0.05
+s = 0.5
 k = 10
 nmax = 10
 eps = 1e-8
@@ -116,45 +252,7 @@ g = lambda x: multivariate_normal.pdf(x, mean=np.zeros_like(x), cov=np.diag(sigm
 
 G = lambda x: np.array(g(x) * (-x / sigma**2)).reshape(-1, 1)
 
-# def g(x):
-#     return multivariate_normal.pdf(x, mean=np.zeros_like(x), cov=np.diag(sigma))
-
-# def G(x):
-#     grad = np.array(g(x, sigma) * (-x / sigma**2))  # Gradient formula for diagonal covariance
-#     return grad.reshape(-1,1)
-
-# samples = []
-# # Main algorithm
-# for i in range(n_iter):
-#     # Step 1: Sample an initial point x0 ~ g
-#     x0 = np.random.multivariate_normal(mean=np.zeros(2), cov=np.diag(sigma))
-
-#     # Step 2: Compute Y = g(x0)
-#     Y = g(x0)
-
-#     # Step 3: Define the constraint q(x) = g(x) - Y
-#     q = lambda x: np.array([g(x) - Y])
-
-#     # Step 4: Define the density on the constraint
-#     f = lambda x: g(x) / la.norm(G(x))
-
-#     # Step 5: Start manifold sampling with x0
-#     x = x0  # Initial point
-#     G_x = G(x)
-#     L_x = la.cholesky(G_x.T @ G_x, lower=True)
-
-#     for j in range(k):
-#         # Sample a point on the constraint manifold
-#         res = manifold_sampler(x, q, f, G, G_x, L_x, s, nmax, eps)
-#         x = res["pt"]
-#         G_x = res["grad"]
-#         L_x = res["chol"]
-
-#     # Store the last sample as the i-th sample
-#     samples.append(x)
-
-
-def contour_sampler(manifold_ker, sigma, k, n_iter):
+def contour_sampler(manifold_ker, sigma, s, k, n_iter):
     samples = []
     # Main algorithm
     for i in range(n_iter):
@@ -177,18 +275,22 @@ def contour_sampler(manifold_ker, sigma, k, n_iter):
 
         for j in range(k):
             # Sample a point on the constraint manifold
-            res = manifold_sampler(x, q, f, G, G_x, L_x, s, nmax, eps)
+            res = manifold_ker(x, q, f, G, G_x, L_x, s, nmax, eps)
+            # res = manifold_auto(x, q, f, G, G_x, L_x, s, nmax, eps)
             x = res["pt"]
             G_x = res["grad"]
             L_x = res["chol"]
+            s = res["step"]
 
         # Store the last sample as the i-th sample
         samples.append(x)
     return samples
 
 
-# # test case
-# samples = contour_sampler(manifold_sampler, sigma, k, n_iter)
+# test case
+
+# # check scatter plot
+# samples = contour_sampler(manifold_auto, sigma, s, k, n_iter)
 # # Convert samples to a NumPy array for further analysis
 # samples = np.array(samples)
 # ref_samples = np.random.multivariate_normal(mean=np.zeros(2), cov=np.diag(sigma), size=n_iter)
@@ -222,23 +324,22 @@ def contour_sampler(manifold_ker, sigma, k, n_iter):
 # print(stats.kstest(samples[:,1], ref_samples[:,1]))
 
 
-## check the joint p-values are uniform([0,1]^2)
-
+# check the joint p-values are uniform([0,1]^2)
 x_pvals = []
 y_pvals = []
-for i in range(100):
-    contour_samples = contour_sampler(manifold_sampler, sigma, k, n_iter)
+for i in range(3):
+    contour_samples = contour_sampler(manifold_auto, sigma, s, k, n_iter)
     contour_samples = np.array(contour_samples)
     real_samples = np.random.multivariate_normal(
         mean=np.zeros(2), cov=np.diag(sigma), size=n_iter
     )
     p_val_x = stats.kstest(contour_samples[:, 0], real_samples[:, 0])[1]
     p_val_y = stats.kstest(contour_samples[:, 1], real_samples[:, 1])[1]
+    print("x_pval: ", p_val_x, "y_pval: ", p_val_y)
     x_pvals.append(p_val_x)
     y_pvals.append(p_val_y)
 
-
-# Compute 2D histogram for samples
+    # Compute 2D histogram for samples
 bins = 20  # Number of bins for the histogram
 hist, x_edges, y_edges = np.histogram2d(
     x_pvals, y_pvals, bins=bins, range=[[0, 1], [0, 1]], density=True
@@ -252,7 +353,7 @@ X, Y = np.meshgrid(x_centers, y_centers)
 # Uniform density value for comparison
 # uniform_density = np.ones_like(hist) / (bins * bins)  # Adjusted for equal-area bins
 uniform_density = np.ones_like(hist)
-uniform_density_scaled = uniform_density * hist.max()
+uniform_density_scaled = uniform_density * hist.mean()
 
 # 3D Plot: Observed Histogram vs Uniform Density
 fig = plt.figure(figsize=(10, 8))

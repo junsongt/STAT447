@@ -21,8 +21,8 @@ The manifold samplers from the previous literature(\cite{rattle}, \cite{manifold
 \section{Manifold sampler with autostep}
 In this section, we will introduce the modified sampling method mentioned above in more details. First we start by introducing the notations and problem setting for the context:
 \subsection{Background}
-Consider the $d$-dimensional submanifold embeded in $\R^n$ defined by a set of $m$ constraints: $\Mscr = \{x \in \R^n : F_i(x) = 0, i = 1,\ldots, m\}$, and write $F(x) = [F_1(x),\ldots, F_m(x)]^\top$. Let $\pi$ be the target distribution defined on $\Mscr$ with respect to $d$-dimensional Hausdorff measure so that $\pi(dx) = f(x) \Hcal^{d}(dx)$ for some density $f$.
-Denote $Q_x = [\nabla F_1(x), \ldots, \nabla F_m(x)]$, whose column vector is the gradient $\nabla F_j(x)$, which is also equivalent to $DF(x)^\top$ by convention; Note that $Q_x$ is a $n \times m$ matrix. Denote $T_x = \text{Null}(G_x^T)$ as the tangent space at $x$ and $N_x = span(G_x)$ as the normal space at $x$. We will refer the readers to the literature \cite{manifoldparent} and \cite{manifoldchild} for more technical details in the algorithm.
+Consider the $d$-dimensional submanifold embeded in $\R^n$ with $d < n$ defined by a set of $m$ constraints: $\Mscr = \{x \in \R^n : F_i(x) = 0, i = 1,\ldots, m\}$, and write $F(x) = [F_1(x),\ldots, F_m(x)]^\top$. Let $\pi$ be the target distribution defined on $\Mscr$ with respect to $d$-dimensional Hausdorff measure so that $\pi(dx) = f(x) \Hcal^{d}(dx)$ for some density $f$.
+Denote $Q_x = [\nabla F_1(x), \ldots, \nabla F_m(x)]$, whose column vector is the gradient $\nabla F_j(x)$, which is also equivalent to $DF(x)^\top$ by convention; Note that $Q_x$ is a $n \times m$ matrix. Denote $T_x = \text{Null}(Q_x^T)$ as the tangent space at $x$ and $N_x = span(Q_x)$ as the normal space at $x$. We will refer the readers to the literature \cite{manifoldparent} and \cite{manifoldchild} for more technical details in the algorithm.
 
 \subsection{Modified sampler with autostep}
 In this section, we will explain the sketch of the manifold sampler with autostep
@@ -32,34 +32,35 @@ Below is a sketch of the whole algorithm.
 \caption{manifold sampler with autostep}
 \label{algo:manifold_autostep}
 \begin{algorithmic}[1]
-    \Require State $x_0 \in \Mscr$, constraints: $F$, target density: $f$, initial step size parameter: $\sigma_0$. 
+    \Require $x_0 \in \Mscr$, constraints: $F$, target density: $f$, initial(last gen.) step size parameter: $\sigma_0$. 
 
-    \State $\sigma_x \gets \sigma_0$
-    \State Select the step size $\sigma_x \gets \text{adjust\_step}(x, \sigma_x, F, Q_x, f, a, b)$
-    \State Sample the tangent vector: $v_x \sim N(0, \I)$ where $v_x \in T_x$ and project to $\Mscr$: $y \gets x + \sigma v_x + Q_x\cdot c$
-    \State Find the reverse tangent vector: $v_y \gets \text{Proj}_{T_y}(x-y)$
-    \If{$U \sim \Unif(0,1) > \exp\Big(\log f(y) - \log f(x) - \frac{\norm{v_y}^2-\norm{v_x}^2}{2\sigma_x^2} \Big)$}  \Comment{M-H step}
-        \State Return $x$
+    \State $\sigma \gets \sigma_0$; $(a, b) \sim \Unif(\Delta)$
+    \State Select the step size $\sigma \gets \textbf{adjust\_step}(x, \sigma, F, Q_x, f, a, b)$
+    \State Sample tangent vector: $v_x \sim N(0, \I)$ where $v_x \in T_x$ and project to $\Mscr$: $y \gets x + \sigma v_x + Q_x\cdot c$
+    \State Find reverse tangent vector: $v_y \gets \text{Proj}_{T_y}(x-y)$
+    \If{$U \sim \Unif(0,1) > \exp\Big(\log f(y) - \log f(x) - \frac{\norm{v_y}^2-\norm{v_x}^2}{2} \Big)$}  \Comment{M-H step}
+        \State Return $(x, \sigma)$
     \EndIf
-    \If{$\text{reversible}(x, y, v_y, Q_y) ==$ false} \Comment{reversibility check}
-        \State Return $x$
+    \If{$\textbf{reversible}(x, y, v_y, Q_y) ==$ false} \Comment{reversibility check}
+        \State Return $(x, \sigma)$
     \EndIf
-    \State \Return $y$
+    \State \Return $(y, \sigma)$
     \end{algorithmic}
 \end{algorithm}
 
 
 \begin{algorithm}[H]
-\caption{Step size selector adjust\_step}
+\caption{Step size selector \textbf{adjust\_step}$(x, \theta, F, Q_x, f, a, b)$}
 \label{algo:stepsize_selector}
 \begin{algorithmic}[1]
 \Require State $x \in \mathbb{R}^3$, auxiliary variable $z \in \mathbb{R}^3$, acceptance bounds $(a, b)$, initial step size $\sigma_0$
 
-\State $\theta \gets \theta_0$
-\While{$\text{solve}() ==$ false}
-    \State $\theta \gets \theta / 2$    
+\State $\theta \gets \theta_0$; $v \sim N(0, \I)$; $(x', \text{flag}) \gets \textbf{solve}(x+\theta v, F, Q_x)$
+\While{flag $==$ false}
+    \State $\theta \gets \theta / 2$ 
+    \State $(x', \text{flag}) \gets \textbf{solve}(x+\theta v, F, Q_x)$
 \EndWhile
-\State Compute $\ell \gets \ell(x, v, \theta)$
+\State Compute $\ell \gets \ell(x, v, \theta) = \log f(x') - \log f(x) - \frac{\norm{v_x'}^2-\norm{v_x}^2}{2}$
 \State Determine $v = 1$ if $|\ell| < |\log b|$, $v = -1$ if $|\ell| > |\log a|$, else $v = 0$
 \State $j = 0$
 \If{$v = 0$}
