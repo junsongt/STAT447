@@ -4,6 +4,11 @@
 \input{macros/basic-math-macros} 
 \graphicspath{{./figures/}}
 
+\oddsidemargin 3mm
+\evensidemargin 3mm
+\topmargin -12mm
+\textheight 650pt
+\textwidth 470pt
 
 \begin{document}
 
@@ -22,13 +27,11 @@ The manifold samplers from the previous literature(\cite{rattle}, \cite{manifold
 \section{Manifold sampler with autostep}
 In this section, we will introduce the modified sampling method mentioned above in more details. First we start by introducing the notations and problem setting for the context:
 \subsection{Background}
-Consider the $d$-dimensional submanifold embeded in $\R^n$ with $d < n$ defined by a set of $m$ constraints: $\Mscr = \{x \in \R^n : F_i(x) = 0, i = 1,\ldots, m\}$, and write $F(x) = [F_1(x),\ldots, F_m(x)]^\top$. Let $\pi$ be the target distribution (could possibly be un-normalized) defined on $\Mscr$ with respect to $d$-dimensional Hausdorff measure so that $\pi(dx) = f(x) \Hcal^{d}(dx)$ for some density $f$.
-Denote $Q_x = [\nabla F_1(x), \ldots, \nabla F_m(x)]$, whose column vector is the gradient $\nabla F_j(x)$, which is also equivalent to $DF(x)^\top$ by convention; Note that $Q_x$ is a $n \times m$ matrix. Denote $T_x = \text{Null}(Q_x^T)$ as the tangent space at $x$ and $N_x = span(Q_x)$ as the normal space at $x$. We will refer the readers to the literature \cite{manifoldparent} and \cite{manifoldchild} for more technical details in the algorithm.
+Consider the $d$-dimensional smooth submanifold embeded in $\R^n$ with $d < n$ defined by a set of $m$ constraints: $\Mscr = \{x \in \R^n : F_i(x) = 0, i = 1,\ldots, m\}$, and write $F(x) = [F_1(x),\ldots, F_m(x)]^\top$. Let $\pi$ be the target distribution (could possibly be un-normalized) defined on $\Mscr$ with respect to $d$-dimensional Hausdorff measure so that $\pi(dx) = f(x) \Hcal^{d}(dx)$ for some density $f$.
+Denote $Q_x = [\nabla F_1(x), \ldots, \nabla F_m(x)]$, whose column vector is the gradient $\nabla F_j(x)$. Note that $Q_x$ is a $n \times m$ matrix. Denote $T_x = \text{Null}(Q_x^T)$ as the tangent space at $x$ and $N_x = \text{span}(Q_x)$ as the normal space at $x$. For the tangent move $v_x \in T_x$, $v_x \sim N(0, \I)$ and then scaled by the step size parameter $\sigma$. We will refer the readers to the literature \cite{manifoldparent} and \cite{manifoldchild} for more technical details for the implementation of manifold sampler.
 
-\subsection{Modified sampler with autostep}
-In this section, we will explain the sketch of the manifold sampler with autostep
-
-Given the global parameters such as: the set of constraints $F$, gradient function $Q$ and target density $f$. Below is a sketch of the whole algorithm.
+\subsection{Modified manifold sampler with autostep}
+In this section, we will explain how autostep is used in the manifold sampling. Given the global parameters: the set of constraints $F$, gradient function $Q$ and target density $f$, the one-iteration manifold sampler with autostep takes the current sample and the step size from the last iteration as initial choice, and outputs the next sample and the initial step size for the next iteration. Below is a sketch of the algorithm.
 \begin{algorithm}[H]
 \caption{manifold sampler with autostep}
 \label{algo:manifold_autostep}
@@ -48,9 +51,13 @@ Given the global parameters such as: the set of constraints $F$, gradient functi
     \State \Return $(y, \sigma)$
     \end{algorithmic}
 \end{algorithm}
+The key helper function: \textbf{adjust\_step} (Algorithm \ref{algo:stepsize_selector}) is inherited from the stepsize selector from \cite{autostep}, which is designed to automatically select the step size based on the range of the log of Green-Geyer ratio: $\ell$. Note that in manifold sampling case, in terms of the augmented state: $(x, v_x)$, the state transforamtion is known to be deterministic and has Jacobian one, hence such ratio can be simplified into just log-joint-likelihood ratio. However, to obtain $\ell$, the proposed sample and its tangent vector have to be obtained first, so when sample $x'$, the step size should also be adjusted to make sure $F(x + \sigma v_x + Q_x \cdot c) = 0$ has a solution for $c \in \R^m$, i.e. halving the step size until $c$ has a solution. We claim that such process always finitely terminates. 
+\begin{lemma}\label{lemma:finte_solver}
+Given the initial step size $\sigma_0$ and some error margin $\eps > 0$, let $N = \min\{n \in \N : \norm{F(x + \sigma_0 2^{-n} v_x + Q_x \cdot c)} < \eps\}$ for some $c \in \R^m$, then $N < \infty$.
+\end{lemma}
+Once $x' \in \Mscr$, $v_{x'}$ could be obtained by projection from Algorithm \ref{algo:manifold_autostep} accordingly. But in manifold sampling context, it is computationally expensive to get $\ell$ since it is different from getting a sample from Eucliean space.
 
-
-\begin{algorithm}[H]
+\begin{algorithm}[!ht]
 \caption{Step size selector \textbf{adjust\_step}$(x, v, \theta, a, b)$}
 \label{algo:stepsize_selector}
 \begin{algorithmic}[1]
@@ -77,140 +84,16 @@ Given the global parameters such as: the set of constraints $F$, gradient functi
 
 
 \subsection{Distribution Invariance \& correctness check}
-It has already been shown in \cite{manifoldparent} that the usual manifold sampler with fixed step parameter has $\pi$ invariance while autostep has also been shown in \cite{autostep} that
+It has already been shown in \cite{manifoldparent} that the manifold sampler with fixed step parameter has distribution invariance while it has also been shown in \cite{autostep} that autostep MCMC has invariance in terms of the augmented state: $(x, z, a, b, \theta)$. By applying the similiar arguments from autostep, it can be easily shown that autostep manifold sampler also has distribution invariance in terms of augmented state.
+\begin{proposition}\label{prop:invariance}
+Let $\tilde{\pi}$ be the joint probability measure of augmented state: $(x, v_x, a, b, \sigma)$, then autostep manifold sampler has $\tilde{\pi}$-invariance, hence it has $\pi$-invariance marginally.
+\end{proposition}  
+Though invariance has been established theoretically, the target distribution is defined with respect to Hausdorff measure instead of usual Lebsegue measure, which is not straightforward to check invariance numerically. However, thanks to \cite{ratest}, a novel MCMC debugging method could be applied to test the kernel's correctness. The idea behind the test is an application of co-area formula and probability disintegration. In essence, we will test our autostep manifold sampler on the contour of our test density $g$ since the contour itself is some manifold. Suppose test samples obtained are $\{S_i\}_{i=1}^N$, theoretically, it can be shown that:
+\begin{theorem}[\cite{ratest}]\label{thm:ratest}
+Let the test distribution be $\mu$ with density $g$. If the kernel to be tested has invariance, then $S_i \sim \mu, \forall i \leq N$
+\end{theorem} 
 
 
-Now with combining autostep But we notice that such algorithms along with many others with deterministic proposals have things in common, which is that they usually have involutive transformation between states to satisfy the reversibility. In MCMC literature, \cite{tierney1998} pointed out that if the transformation between states is deterministic and involutive, then by setting the proposal to be delta measure, the detailed balance condition will follow, which implies the distribution invariance. So we wish to take advantage of this involution framework to show that the manifold sampler has $\pi$ invariance.
-
-Before that, we will show some important results as a baseline for our justification for $\pi$ invariance of the manifold sampler. Suppose the target distribution is $\pi$ with density $f$ with respect to the Lebesgue measure, and let $x, y$ be the current and next state. The usual Metropolis-Hastings ratio is: $r = \frac{f(y) q(x | y)}{f(x) q(y | x)}$ for some proposal: $q$. But given our state transformation $T$ such that $y = T(x)$ being deterministic and involutive, i.e. $T = \inv{T}$, then $r(x) = \frac{f(T(x))}{f(x)} \cdot \abs{J_T(x)}$, where $J_T(x)$ is the determinant of Jacobian matrix of $T$. Now we extend this notation a little bit:
-
-Suppose our target distribution $\pi$ is defined w.r.t. measure $\mu$ so that the Radon-Nikodyn derivative: $\frac{d\pi}{d\mu}$ is well-defined, then we define the ratio: \[r(x) = \frac{d T^*\pi}{d\mu}(x) / \frac{d\pi}{d\mu}(x)\]where $T^*\pi$ is the pull-back probability measure such that: $T^*\pi(A) = \pi(T(A))$
-
-If we apply the M-H routine with the new $r(x)$ defined above, then the consequence is that we will have global balance and hence distribution invariance. To show this result, we will introduce the following lemma as an intermediate step.
-
-% \begin{lemma}\label{lemma_invol}
-% Let $\pi$ be the target distribution on $\Xcal$ with respect to measure $\mu$ and $T$ be an involution on $\Xcal$. Given the current state: $x$ and the next state: $y$ such that $y = T(x)$, and the acceptance probability is defined as:  
-% \[\alpha(x, T(x)) = \min\{1, r(x)\}\]
-% then we will have the detailed balance equation: 
-% \[\frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)\]
-% \end{lemma}
-
-% \begin{proof}
-% First, note that by the definition of pull-back measure, $\frac{d\pi}{d\mu}(y) = \frac{d\pi}{d\mu}(T(x)) = \frac{d T^*\pi}{d\mu}(x)$. Since $T = T^{-1}$, then $x = T^{-1}(y) = T(y)$, so again, $\frac{d\pi}{d\mu}(x) = \frac{d\pi}{d\mu}(T(y)) = \frac{d T^*\pi}{d\mu}(y)$, hence $r(x) \cdot r(y) = 1$.
-
-% Therefore, \begin{align*}
-% & \frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x) \cdot \min\Big\{\frac{d\pi}{d\mu}(x) / \frac{d T^*\pi}{d\mu}(x), 1\Big\}\\
-% & = \frac{d T^*\pi}{d\mu}(x) \cdot\min\Big\{\frac{1}{r(x)}, 1\Big\} = \frac{d T^*\pi}{d\mu}(x) \cdot\min\{r(y), 1\} = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)
-% \end{align*}
-
-% \end{proof}
-
-
-% \begin{theorem}\label{thm_invariance}
-% Let $X$ be the current state and $Y$ be the next state and $X$ has distribution: $\pi$ which has density with respect to measure $\mu$. Suppose $T$ is an involution such that $Y = T(X)$. Define the transition kernel: $K(x, E) = \alpha \cdot \1_E(T(x)) + (1 - \alpha) \1_E(x)$ for any event $E$. Then the global balance holds:
-% \[\P(Y \in A) = \pi(A) = \int_{x \in \Xcal} \pi(dx) K(x, A)\]
-% \end{theorem}
-
-% \begin{proof}
-% \begin{align*}
-% & \int_{x \in \Xcal} \pi(dx) K(x, A) = \int_{x \in \Xcal} \pi(dx) [\alpha\1_A(T(x)) + (1-\alpha)\1_A(x)]\\
-% & = \int_{x \in \Xcal} \pi(dx) \alpha(x, T(x)) \1_A(T(x)) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-% & = \int_{x \in \Xcal} \frac{d T^*\pi}{d\mu}(x) \alpha(T(x), x)\1_A(T(x)) d\mu(x) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-% & = \int_{y \in \Xcal} \pi(dy) \alpha(y, \inv{T}(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-% & = \int_{y \in \Xcal} \pi(dy) \alpha(y, T(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
-% & = \int_{y \in \Xcal} \pi(dy) \1_A(y) = \pi(A)\\
-% \end{align*}
-% \end{proof}
-
-
-
-
-
-\subsection{Involution within the manifold sampler}
-Now back to the manifold sampler setting, compared to \cite{manifoldparent}, the advantage of the above abstract framework is that it is a good tool to help us prove that the manifold sampler has $\pi$ invariance if we can find an involution between the states. Indeed, by the trick of augmenting space, i.e. introducing some necessary auxiliary variables, we can construct an involution from the manifold sampler.
-
-Let $S = \{(x, v_x) \in T\mathscr{M} : \norm{F(x + v_x + G_x \cdot a)} < \eps\} \subset T\mathscr{M}$ for some small enough positive $\eps$, where $w_x = G_x \cdot a \in N_x$, for some coefficient vector $a \in \R^m$. This means $S$ is some subset of tangent bundle $T\mathscr{M}$ such that we could have a successful projection on $\mathscr{M}$, thus we could denote $y = x + v_x + w_x$. 
-% For simplicity, we will consider all the states from $S$ for later discussion.
-
-Define $T_0: T\mathscr{M} \to T\mathscr{M}$ as $T_0(x, v_x) = (y, v_y)$ 
-where:
-$\begin{cases}
-y =  x + v_x + w_x = x + v_x + G_x \cdot a\\
-v_y = \textit{proj}_{T_y}(x-y)
-\end{cases}$
-
-Let $A = \{(x, v_x) \in S : \norm{F(y + v_y + G_y a'} < \eps\}$, where $(y, v_y) = T_0(x, v_x)$, so $A$ represents the set where reversibility holds.
-
-Define $T: T\mathscr{M} \to T\mathscr{M}$ as $T(x, v_x) = T_0(x, v_x) \cdot \1_A + I(x, v_x) \cdot \1_{A^c}$.
-
-We claim that: $T$ is a non-trivial involution on $T\mathscr{M}$, i.e. $T \neq I$.
-
-\begin{proof}
-First, it is essential to argue that such $A \neq \emptyset$. By assumption, $\mathscr{M}$ is smooth manifold so that $F$ is a smooth function. Thus, for a given $\eps > 0, \exists \delta > 0$ such that $\forall x',x \in \R^n$ with $\norm{x'- x} < \delta$, we have $\norm{F(x') - F(x)} < \eps$. 
-
-In order to find at least one element, we could pick $x \in \mathscr{M}$, and choose an open ball inside the ambient space centered at $x$ : $B_\delta(x)$ with radius $\delta$, and pick $y \in B_\delta(x) \cap \mathscr{M}$.
-
-Let $v_x = \textit{proj}_{T_x}(y-x)$, so during the process of solving $a$ with starting $a_0 = 0$, for each intermediate $a$, 
-\[\norm{x + v_x + G_x a - x} \leq \norm{v_x + \textit{proj}_{N_x}(y-x)} = \norm{y-x} < \delta\]hence $x + v_x + G_x a \in B_\delta(x)$, which implies $\norm{F(x + v_x + G_x a)} < \eps$, so $(x, v_x) \in S$;
-
-Now for the reverse projection, by the similar argument from above, for each intermediate $a'$, \[\norm{y + v_y + G_y a' - y} \leq \norm{v_y + \textit{proj}_{N_y}(x-y)} = \norm{x-y} < \delta\]hence $y + v_y + G_y a' \in B_\delta(y)$, which implies $\norm{F(y + v_y + G_y a')} < \eps$, so $(x, v_x) \in A$.
-% so \[v_x = (I - G_x(G_x^TG_x)^{-1}G_x^T)(y-x)\]thus \[F(x + v_x + G_x \cdot a) = F(y + G_x(a - (G_x^TG_x)^{-1}G_x^T(y-x)))\]
-% Let coefficient $b = (G_x^TG_x)^{-1}G_x^T(y-x)$, choose $a$ such that $\norm{a - b} < \frac{\delta}{\norm{G_x}}$, then
-% \[\norm{y + G_x(a-b) - y} \leq \norm{G_x} \cdot \norm{a-b} < \delta\]
-% hence $y + G_x(a-b) \in B_\delta(y)$, which implies that $\norm{F(x + v_x + G_x \cdot a)} < \eps$ since $F(y) = 0$, so $(x, v_x) \in S$.
-
-% By the similar arugment for the reverse projection, we let $b' = (G_y^TG_y)^{-1}G_y^T(x-y)$, thus $y + v_y + G_y a' = x + G_y(a'-b')$. So we could choose $a'$ with $\norm{a'- b'} < \frac{\delta}{\norm{G_y}}$, thus $y + v_y + G_y a' \in B_\delta(x)$ and hence $\norm{F(y + v_y + G_y a')}< \eps$. So $(x, v_x) \in A$.
-
-Next we will show that by the definition of $T_0$, $\forall (x, v_x) \in A, T_0 \circ T_0 = I$. 
-
-Let $(x, v_x) \in A$. Suppose $(y, v_y) = T_0(x, v_x)$ and $(x', v_{x'}) = T_0(y, v_y) = T_0\circ T_0(x, v_x)$.
-
-Then by definition, 
-\[x' = y + v_y + w_y = y + \textit{proj}_{T_y}(x-y) + \textit{proj}_{N_y}(x-y) = y + (x - y) = x\]and
-\[v_{x'} = \textit{proj}_{T_{x'}}(y-x') = \textit{proj}_{T_x}(y-x) = \textit{proj}_{T_x}(v_x + w_x) = v_x \text{ (since $w_x \perp T_x$)}\]
-which proves our claim.
-\end{proof}
-
-
-
-
-\subsection{Distribution invariance of manifold sampler}
-Compared to the proof in \cite{manifoldparent}, we will utilized the tool from involution framework to show $\pi$ invariance. We assume the settings in the literature that $\pi$ is target probability measure and $f$ is the density w.r.t. Hausdorff measure, and we use the result from literature that there is no scaling factor in the M-H ratio, i.e. the transformation $T$ is isometric, or in other words, ``volume preserving", then the distribution invariance for manifold sampler is an immediate consequence from the theorem \ref{thm_invariance}:
-\begin{corollary}
-Let $\pi$ be the distribution defined on the manifold. Let the kernel of the manifold sampler be:
-\[K(\tilde{x}, A) = \alpha\Big(\tilde{x}, T(\tilde{x})\Big)\1_A(T(\tilde{x})) + \Big(1- \alpha(\tilde{x}, T(\tilde{x}))\Big)\1_A(\tilde{x})\]where $\tilde{x} = (x, v_x)$ and $\tilde{y} = (y, v_y)$ for the augmented space, and \[\alpha\Big(\tilde{x}, T(\tilde{x})\Big) = \min\Big\{1, \frac{f(y)p(v_y|y)}{f(x)p(v_x|x)}\Big\}\]
-
-then $K$ has distribution invariance.
-\end{corollary}
-
-
-
-% \cite{manifoldparent}, it is argued that the Jacobians: $J(x|y)$ and $J(y|x)$ could cancel. $J(y|x)$ could be interpreted as the inverse of the determinant of the linearization of the projection: $v_x \to y$, or $\det[\frac{\partial v_x}{\partial y}]$. Meanwhile, we claim that $\abs{J_T(x, v_x)} = 1$, which is consistent with the cancellation of Jacobians above.
-
-% To show $\abs{J_T(x, v_x)} = 1$, it suffices to show that the map $T$ preserves the ``volume''.(To be continued..)
-
-
-
-All the above shows theoretically that manifold sampler has distribution invariance, but such distribution is defined with respect to Hausdorff measure instead of usual Lebsegue measure, which is a bit hard to check invariance numerically. However, thanks to the recent discovery by \cite{ratest}, we are able to implement an algorithm to test invariance on the manifold. Basically we are using an MCMC debugging method to test that if the kernel of manifold sampler has bug or not, i.e. if the kernel has no bug, then it will lead to distribution invariance.
-
-The idea behind the test is an application of co-area formula and probability disintegration. In essence, we will test our manifold sampler on the contour of our testing distribution density $g$, since the contour itself is some manifold. We introduce another random variable $Y$, which represents the ``altutude'' of $g$ evaluated at some point $x \in \R^n$. 
-
-Suppose we have a contour of $g$: $\Gamma_y = \inv{g}(\{y\})$ and we run manifold sampler on that to obtain a chain: $\{X_1, \ldots, X_m\}$. Cosnider the probability measure of $X_1$ w.r.t Lebesgue measure:
-\[\P(X_1 \in A)= \mu(A) = \int_A g(x)dx = \int_{\R^+} \P(X_1\in A | Y = y) f_Y(y) dy\]
-While by co-area formula, \[\int_A g(x) dx = \int_{\R} \int_{A \cap g^{-1}(\{y\})} \frac{g(x)}{\abs{\nabla g(x)}} \Hcal^{n-1}(dx)dy\]
-
-% So the probability measure of $X_1$ is:
-% \[\P(X_1 \in A)= \mu(A) = \int_A g(x)dx = \int_{\R^+} \P(X_1\in A | Y = y) dy\] 
-So we can put the conditional probability measure: \[\xi_Y(A) = \P(X_1 \in A | Y = y) = \int_{A \cap g^{-1}(\{y\})} \frac{g(x)}{\abs{\nabla g(x)} f_Y(y)} \Hcal^{n-1}(dx)\]where the density for the ``altitude'' $Y$ is: \[f_Y(y) = \int_{g^{-1}(\{y\})} \frac{g(x)}{\abs{\nabla g(x)}} \Hcal^{n-1}(dx)\]
-
-The key properties from the above derivations are:
-\begin{enumerate}
-\item[i]
-$X_1 \sim \mu$ is equivalent to $Y \sim \nu$ and $X_1 | Y \sim \xi_Y$
-\item[ii]
-If the manifold sampler kernel $K$ we want to test leads to invariant distribution with respect to $\xi_Y$, i.e. $\xi_Y(A) = \int \xi_Y(dx) K(x, A)$, then given $X_2 |X_1 \sim K(X_1, \cdot)$, we will have $X_2 \sim \mu$. This is because $X_2 | Y \sim \xi_Y$ and $Y \sim \nu$, which is equivalent to $X_2 \sim \mu$. Finally, by induction we can have $X_m \sim \mu$. Put $S = X_m$ as our test sample.
-\end{enumerate}
-In short, if we test: $S \sim \mu$, then $K$ is correct; if not, then $K$ has bug. So to test if $S \sim \mu$, once we have a sequence of test samples generated by our test algorithm, and another sequence of samples directly generated from the true distribution: $\mu$ with density $g$, then we could use Kolmogorov-Smirnov test to check the p-value. If p-value is small, then we reject $H_0: S \sim \mu$.
 
 % So we implement this test to check the invariance of the original manifold sampler kernel:
 % \[K(\tilde{x}, d\tilde{y}) = \delta_{T(\tilde{x})}(d\tilde{y}) \alpha(\tilde{x}, \tilde{y}) + \delta_{\tilde{x}}(d\tilde{y}) \int[1 - \alpha(\tilde{x}, \tilde{u})] \delta_{T(\tilde{x})}(d\tilde{u})\] or equivalently: \[K(\tilde{x}, A) = \alpha\Big(\tilde{x}, T(\tilde{x})\Big)\1_A(T(\tilde{x})) + \Big(1- \alpha(\tilde{x}, T(\tilde{x}))\Big)\1_A(\tilde{x})\]
@@ -226,22 +109,6 @@ In short, if we test: $S \sim \mu$, then $K$ is correct; if not, then $K$ has bu
 
 % \end{proof}
 
-\section{Auto-Step MCMC application in manifold setting}
-Next, we attempted to apply the Auto-Step MCMC algorithm in \cite{autostep} to the manifold setting. Since our application is mainly based on the original algorithm, so we will only explain some small modified parts.
-
-\textbf{Explanation of changes in Algorithm 1: One iteration of AutoStep MCMC}
-
-The initial value $x$ is extended from a two-dimensional vector to a three-dimensional vector $x \in \mathbb{R}^3$. The auxiliary variable $z$ is also extended to a three-dimensional vector $z \in \mathbb{R}^3$. Correspondingly, $m$ is extended from a two-dimensional normal distribution $N(0, I_2)$ to a three-dimensional normal distribution $N(0, I_3)$, where $I_3$ is a $3 \times 3$ identity matrix. Additionally, the step size distribution $\eta$ and the transformation $f_\sigma$ are both applied in $\mathbb{R}^3$.
-
-
-
-
-\textbf{Explanation of changes}
-
-
-The function $l$ is used to evaluate whether the current step size $\sigma$ is appropriate and to determine whether the step size needs to be adjusted. Specifically, $l$ compares the step size with the acceptance bounds $a$ and $b$ to decide whether the step size should be increased or decreased.
-
-Since the norm is smooth and continuous, using the norm to evaluate the current step size $\sigma$ helps the step size selector maintain stability during adjustment, avoiding sudden and drastic changes. Moreover, the norm is symmetric, ensuring that the step size adjustment is fair in all directions without bias toward any particular direction.
 
 
 
@@ -249,413 +116,144 @@ Since the norm is smooth and continuous, using the norm to evaluate the current 
 
 
 \section{Experiments}
-\subsection{Numerical verification of invariance of manifold sampler kernel}
-We implemented the algorithm in \cite{ratest} to check the $\pi$ invariance of manifold sampler. We use the test distribution to be a bivariate Gaussian with mean $0$ and covariance matrix: $\Sigma = \begin{pmatrix}
+\subsection{Kernel correctness test}
+First, to establish the correctness of autostep manifold sampler, we implemented the ``random altitude'' test mentioned above. A bivariate Gaussian with mean $0$ and covariance matrix: $\Sigma = \begin{bmatrix}
 1 & 0\\
 0 & 2\\
-\end{pmatrix}$, so that the contour for the manifold kernel to sample on is an ellipse. 
-
-Suppose $S_M$ are the samples that the manifold kernel gets on the contour and $S_g$ are the samples we get directly from the test distribution, then our null hypothesis $H_0$ would be: $S_M \overset{d}{=} S_g$. We should expect the $p$-value of the K-S test to be big enough so that we don't reject $H_0$. But to reduce randomness, we use the fact that given $H_0$ being true, the $p$-value is uniformly distributed. Since K-S test is designed for one-dimensional data, so we use K-S test on two dimensions separately and observe the joint distribution of the $p$-values from each dimension, and we should expect $p$-value $\sim \Unif(0,1)^2$.
-
-In the test, for the sake of running time, we choose the sample size to be $1000$ and the chain that the manifold kernel generates to be of length $10$. For the joint $p$-value distribution, we run $100$ iterations to get samples of $p$-values. Below on the left is the contour scatter plot distribution of $S_M$ and $S_g$:
-
-
-% \begin{figure}[h]
-%     \centering
-%     \begin{minipage}{0.47\linewidth}
-%         \centering
-%         \includegraphics[width=\textwidth]{contour_scatter.png}
-%         \caption{scatter distributions compare}
-%         \label{testdistr}
-%     \end{minipage}
-%     \hspace{0.03\textwidth}
-%     \begin{minipage}{0.47\linewidth}
-%         \centering
-%         \includegraphics[width=1.1\textwidth]{pval.png}
-%         \caption{distribution of p-value}
-%         \label{pvaldistr}
-%     \end{minipage}
-    
-% \end{figure}
-
-% \begin{figure}
-% \begin{minipage}[t]{0.46\linewidth}
-% \centering
-% \includegraphics[width=0.46\linewidth]{contour_scatter.png}
-% \caption{scatter distributions}
-% \end{minipage}
-
-% \begin{minipage}[t]{0.48\linewidth}
-% \centering
-% \includegraphics[width=0.48\linewidth]{torus/samping points torus.jpg}
-% \caption{distribution of p-value}
-% \end{minipage}
-% \end{figure}
-
-% \begin{figure}
-%     \begin{floatrow}
-%         \ffigbox{\includegraphics[width=0.5\textwidth]{contour_scatter.png}}{\caption{scatter distributions compare}}
-%         \ffigbox{\includegraphics[width=0.4\textwidth]{torus/samping points torus.jpg}}
-%         {\caption{distribution of p-value}}
-    
-%     \end{floatrow}
-% \end{figure}
-
-
-We can see that from the general scatter plot \ref{testdistr}, the samples obtained from the manifold kernel are quite close to the test distribution. Furthermore, from the plot \ref{pvaldistr}, though due to the number of iterations is not large enough so that we can not see the super clear pattern that the distribution of $p$-value being uniform, we still can see that most of the masses are evenly spread and do not concentrate on the neighborhood of $0$, hence we can conclude that $H_0$ should not be rejected and the numerical test for invariance passes and it is consistent with the theory.
-
-
-
-\subsection{Implementation of Auto-Step sampler on some 3D examples}
-To implement the Auto-Step MCMC for these three 3D examples, we will follow the pseudocode outlined in \cite{autostep} and use a Gaussian distribution as the target distribution. For comparison, we will benchmark our method against the MCMC on Constraint Manifolds method described in \cite{manifoldparent} and \cite{manifoldchild}. For each case, the same well-chosen parameters will be used, and the results will be analyzed as follows:
-
-\begin{itemize}
-    \item \textbf{Sampling Visualization:} Plot the sampled points and compare them with the theoretical manifold to evaluate the accuracy of sampling.
-    
-    \item \textbf{Empirical vs. Theoretical Distributions:} Compare the empirical distributions of sampled points against the theoretical target distribution.
-    
-    \item \textbf{Performance Evaluation:} Evaluate the Effective Sample Size (ESS) and sampler performance (ESS per unit compute time) for both Auto-Step MCMC and MCMC on Constraint Manifolds. For comparison, we have to make the target distribution of the two methods consistent. Hence, we will change the target distribution of MCMC on Constraint Manifolds from uniform to Gaussian distribution.
-    
-    \item \textbf{Autocorrelation Analysis:} Analyze the sampled chains' autocorrelation to assess the mixing quality.
-\end{itemize}
-
-We will use Matlab for code implementation.
-
-The ESS formula we are using here is 
-\begin{align*}
-    ESS= \frac{N}{1+ 2\sum_{k=1}^K \rho_k}
-\end{align*}
-where N is the total number of MCMC sample points; $\rho_k$ is the  Autocorrelation at lag k; and K is the maximum lag considered.
-
-\subsubsection{Torus}
-Consider the torus \(T\) embedded in \(\mathbb{R}^3\), defined as:
-\[
-T = \{(x, y, z) \in \mathbb{R}^3 : (R - \sqrt{x^2 + y^2})^2 + z^2 - r^2 = 0\}
-\]
-where \(R\) and \(r\) are positive real numbers, and \(R > r\).
-
-Further, the parametric representation of \(T\) in cylindrical coordinates is:
-\[
-T = \{(R + r \cos(\phi))\cos(\sigma), (R + r \cos(\phi))\sin(\sigma), r \sin(\phi): \sigma \in [0, 2\pi), \phi \in [0, 2\pi)\}
-\]
-where \(\sigma\) is the toroidal angle, \(\phi\) is the poloidal angle, and the corresponding marginal densities are:
-\[
-g_\sigma(\sigma) = \frac{1}{2\pi}, \quad g_\phi(\phi) = \frac{1}{2\pi} \left(1 + \frac{r}{R} \cos(\phi)\right).
-\]
-
-We used the previously discussed algorithm to perform MCMC sampling on this torus. The sample size is set to \(N = 10^7\), the major radius \(R = 1\), the minor radius \(r = 0.5\), and the step size scale \(\sigma = 0.05\). During the \(10^7\) sampling steps, one in every 100 points is recorded. Figure 3 Part (a) shows the sampling result, which matches the theoretical torus structure well.
+\end{bmatrix}$ was used as the test distribution, so that the contour for the manifold kernel to sample on is an ellipse. Next, after obtaining two set of samples, we used Kolmogorov-Smirnov test (``K-S'' test) to check the p-value for $H_0$ which asserts the same distribution. Since K-S test is one-dimensional and our test distribution has two independent components, so we use K-S tests on two dimensions separately with Bonferroni adjustment of the threshold of p-value divided by $2$, which is $0.025$. To avoid bad luck, multiple such experiments have been carried out. So we can see that from Figure \ref{fig:scatter}, the samples obtained from the manifold autostep kernel are quite close to the test distribution. Furthermore, from Figure \ref{fig:pval}, we can see that both components have p-values larger than the adjusted threshold. Detailed respective p-values are given in Appendix \ref{tab:pvals}. Hence we can conclude that $H_0$ should not be rejected and the kernel is correct.
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=0.6\textwidth, height=0.12\textheight]{scatter.png}
+        \caption{distribution scatterplot compare}
+        \label{fig:scatter}
+    \end{minipage}
+    \hspace{0.03\textwidth}
+    \begin{minipage}{0.45\linewidth}
+        \centering
+        \includegraphics[width=0.6\textwidth, height=0.12\textheight]{pvals.png}
+        \caption{distribution of p-value}
+        \label{fig:pval}
+    \end{minipage}   
+\end{figure}
 
 
 
 
-% \begin{figure}[h]
-%     \centering
-%     \subfigure[Sampling points]{
-%         \includegraphics[width=0.3\textwidth]{torus/samping points torus.jpg}
-%         \label{fig:image1}}
-        
-    
-%     \hspace{0.03\textwidth} 
-%     \subfigure[Empirical distribution of $\sigma$]{
-%         \includegraphics[width=0.3\textwidth]{torus/empirical distribution of sigma torus.jpg}
-%         \label{fig:image2}
-%     }
-%     \hspace{0.03\textwidth}
-%     \subfigure[Empirical distribution of $\phi$]{
-%         \includegraphics[width=0.3\textwidth]{torus/empirical distribution of phi torus.jpg}
-%         \label{fig:image3}
-%     }
-%     \caption{Auto-step MCMC torus}
-%     \label{fig:side_by_side}
-% \end{figure}
 
+\subsection{Comparison with manifold sampler}
+To compare the performance between autostep manifold sampler and usual manifold sampler, we benchmark both samplers from the following perspectives: mixing pattern; auto-correlation (ACF); effective sample size (ESS); time complexity. Regarding the test case, for simplicity we choose $\Mscr$ to be a thin ellipse with constraint equation: $\frac{x^2}{1^2} + \frac{y^2}{0.1^2} = 1$ and set the un-normalized target density to be uniform on $\Mscr$. To see the differences in performance under different initial step sizes, we put $\sigma_0$ in three levels: good, moderate and bad.
 
-Figure 3 parts (b) and (c) illustrate the comparison between the empirical marginal distributions and the theoretical distributions. The marginal distributions of the toroidal angle \(\sigma\) and the poloidal angle \(\phi\) align well with the theoretical distributions, confirming the correctness of the MCMC sampling results on the torus.
-
-
-% \begin{figure}[h]
-%     \centering
-%     \begin{minipage}{0.4\textwidth}
-%         \centering
-%         \includegraphics[width=0.8\textwidth]{torus/ACF of sigma torus.jpg}
-%         \caption{ACF of $\sigma$ in torus}
-%         \label{fig:image1}
-%     \end{minipage}
-%     \hspace{0.03\textwidth}
-%     \begin{minipage}{0.4\textwidth}
-%         \centering
-%         \includegraphics[width=0.8\textwidth]{torus/ACF of phi torus.jpg}
-%         \caption{ACF of $\phi$  in torus}
-%         \label{fig:image2}
-%     \end{minipage}
-    
-% \end{figure}
-
-
+\subsubsection{Mixing}
+To examine the mixing pattern, we start two chains independently at two ``poles'' of the ellipse: $(1,0)$ and $(-1,0)$ as initial points for each sampler. Moreover, we test both samplers' performances under different initial step size setting: $\sigma = 0.05, 0.1, 0.2$.
 % \begin{figure}[H]
 %     \centering
-%     \begin{floatrow}
-
-%         \ffigbox{\includegraphics[width=0.3\textwidth]{torus/ACF of sigma torus.jpg}}%
-%         {\caption{ACF of $\sigma$ in torus}\label{fig:image1}}
-%         \ffigbox{\includegraphics[width=0.3\textwidth]{torus/ACF of phi torus.jpg}}%
-%         {\caption{ACF of $\phi$  in torus}\label{fig:image2}}
-%     \end{floatrow}
-    
-%     \label{fig:side_by_side}
-% \end{figure}
-Figures 4 and 5 show the autocorrelation functions for the angle of the ring plane $\sigma$ and the polar angle $\phi$. The angle $\sigma$ of the samples still exhibits a significant correlation within a small range of lags (e.g. 1 to 5), and the polar angle $\phi$ of the samples still exhibits a significant correlation within a small range of lags (e.g., 1 to 15). Subsequently, as the lag increases, the autocorrelation rapidly decreases and quickly approaches zero. This implies that the sequence can be regarded as essentially independent after short intervals, indicating that the mixing of the MCMC chain is good. Although adjacent samples have some correlation, the dependence between samples generally disappears quickly, allowing us to obtain approximately independent samples after short intervals, which helps improve the effectiveness of statistical inference.
-
-By calculation, the Effective Sample Size (ESS) and sampler performance (ESS per unit compute time) for both Auto-Step MCMC and MCMC on Constraint Manifolds are shown in following table:
-
-\begin{center}
-\begin{tabular}{ |c|c|c|c|c|c|c| } 
-\hline
-Method & parameter &Sample size& ESS & ESS/sample & ESS/sec & (ESS/sec)/sample  \\
-\hline
-\multirow{2}{5em}{Auto-Step MCMC} & $\sigma $& 99,000 & 12529.71 & 12.656\% & 10528.6422 & 10.635\%\\ 
-
-&$\phi$ & 99,000 & 43181.69 & 43.618\%& 36285.3148 & 36.652\%\\
-\hline
-\multirow{2}{9em}{MCMC on ConstraintManifolds} & $\sigma$ & 99,000 & 22618.35 &22.847\% & 210.9588 & 0.213\%\\
-& $\psi$ & 99,000 & 66519.56 & 67.191\% & 620.4203 & 0.627\% \\ 
-
-
-\hline
-\hline
-\end{tabular}
-\end{center}
-
-Auto-Step MCMC achieves a much higher ESS per sample percentage than MCMC on Constraint Manifolds. This indicates that each sample from Auto-Step MCMC contributes more effectively to the ESS, making it more efficient in terms of sample utility. 
-MCMC on Constraint Manifolds provides higher ESS, meaning the quality and independence of the samples are superior. This is beneficial for accurate parameter estimation and convergence diagnostics.
-
-
-
-
-\subsubsection{Cone}
-
-Consider a toroidal surface \( C \) in \( \mathbb{R}^3 \) centered at the origin \((0,0,0)\), defined as:
-\[
-C = \{(x,y,z) \in \mathbb{R}^3 : z = \sqrt{x^2 + y^2}, x^2 + y^2 < 1, z > 0\}
-\]
-
-The theoretical marginal densities of \( X \), \( Y \), and \( Z \) are given by:
-\[
-g_X(x) = \frac{2}{\pi \sqrt{1-x^2}}, \quad g_Y(y) = \frac{2}{\pi \sqrt{1-y^2}}, \quad g_Z(z) = 2z
-\]
-
-This example differs from the previous one mainly in that the points on the toroidal surface are restricted to \( z > 0 \), with the probability of \( z = 0 \) being zero. If \( z = 0 \) were allowed, \( C \) would no longer be a smooth surface because the points at \( z = 0 \) introduce a singularity. We use this example to test the feasibility of the proposed method on higher curvature surfaces.
-
-By setting appropriate parameters for the MCMC sampling, we select \( N = 10^7 \) total samples and a step size of \( s = 0.05 \), and one in every 100 points is recorded. The resulting samples, as shown in part (a) of Figure 5, align closely with the theoretical toroidal surface, confirming the feasibility of the sampling process.
-
-% \begin{figure}[H]
-%     \centering
-%     \subfigure[Sampling points]{
-%         \includegraphics[width=0.3\textwidth]{cone/Samping points.jpg}
-%         \label{fig:image1}}
-%         \hspace{0.03\textwidth}
-%     \subfigure[Empirical distribution of X-axis]{
-%         \includegraphics[width=0.3\textwidth]{cone/X-axis marginal distribution.jpg}
-%         \label{fig:image3}
-%     }
-        
-    
-%     \hspace{0.03\textwidth} 
-%     \subfigure[Empirical distribution of Y-axis]{
-%         \includegraphics[width=0.3\textwidth]{cone/Y-axis marginla distribution.jpg}
-%         \label{fig:image2}
-%     }
-%     \hspace{0.03\textwidth}
-%     \subfigure[Empirical distribution of Z-axis]{
-%         \includegraphics[width=0.3\textwidth]{cone/Z-axis marginal distribution.jpg}
-%         \label{fig:image3}
-%     }
-%     \caption{Auto-step MCMC (cone)}
-%     \label{fig:side_by_side}
+%     \begin{adjustbox}{width=\textwidth}
+%       \includegraphics{mixing_bad_s.png}
+%       \hspace{0.1em}
+%       \includegraphics{mixing_auto_bad_s.png}
+%       \hspace{0.1em}
+%     %   \includegraphics{mixing_margin_s.png}
+%     %   \hspace{0.1em}
+%     %   \includegraphics{mixing_auto_margin_s.png}
+%     %   \hspace{0.1em}
+%       \includegraphics{mixing_good_s.png}
+%       \hspace{0.1em}
+%       \includegraphics{mixing_auto_good_s.png}
+%     \end{adjustbox}
+%     \caption{Traceplots of both samplers with different choices of initial step size}
+%     \label{fig:mixing}
 % \end{figure}
 
+\begin{figure}[H]
+    \centering
+    \begin{adjustbox}{width=\textwidth}%
+      \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=.49\linewidth]{mixing_bad_s.png}\hfill
+        \includegraphics[width=.49\linewidth]{mixing_auto_bad_s.png}
+        % \subcaption*{(a) step size = $0.2$}
+      \end{minipage}\hfill
+      \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \includegraphics[width=.49\linewidth]{mixing_good_s.png}\hfill
+        \includegraphics[width=.49\linewidth]{mixing_auto_good_s.png}
+        % \subcaption*{(b) step size = $0.05$}
+      \end{minipage}
+    \end{adjustbox}
+
+    \medskip 
+    \begin{adjustbox}{width=0.5\textwidth}%
+      \begin{minipage}[t]{\linewidth}
+        \centering
+        \includegraphics[width=.49\linewidth]{mixing_margin_s.png}\hfill
+        \includegraphics[width=.49\linewidth]{mixing_auto_margin_s.png}
+        % \subcaption*{(c) step size = $0.1$}
+      \end{minipage}
+    \end{adjustbox}
+  
+    \caption{Traceplots of both samplers with different choices of initial step size}
+    \label{fig:mixing}
+  \end{figure}
+From Figure \ref{fig:mixing}, we can see that both samplers have slow mixing while they still have different mixing patterns under different step size choices. When having a relatively bad choice of initial step size: $\sigma_0 = 0.2$, autostep manifold mixes better than manifold; when under a good/moderate choice of $\sigma_0 = 0.05$ or $0.1$, both performs similarly.
 
 
-Furthermore, the marginal distributions along the three Cartesian axes \( X \), \( Y \), and \( Z \) are shown in parts (b), (c), and (d) of Figure 5. It can be observed that the empirical distributions match the theoretical ones, providing additional evidence for the validity of the sampling method on the toroidal surface.
-
-
-% \begin{figure}[H]
-%     \centering
-%     \begin{minipage}{0.3\textwidth}
-%         \centering
-%         \includegraphics[width=\textwidth]{cone/ACF of X-axis.jpg}
-%         \caption{ACF of X-axis}
-%         \label{fig:acf_x}
-%     \end{minipage}
-%     \hspace{0.03\textwidth}
-%     \begin{minipage}{0.3\textwidth}
-%         \centering
-%         \includegraphics[width=\textwidth]{cone/ACF of Y-axis.jpg}
-%         \caption{ACF of Y-axis}
-%         \label{fig:acf_y}
-%     \end{minipage}
-%     \hspace{0.03\textwidth}
-
-%     \begin{minipage}{0.3\textwidth}
-%         \centering
-%         \includegraphics[width=\textwidth]{cone/ACF of Z-axis.jpg}
-%         \caption{ACF of Z-axis}
-%         \label{fig:acf_z}
-%     \end{minipage}
-%     \caption{Autocorrelation functions (ACF) of X, Y, and Z axes (cone)}
-%     \label{fig:acf_combined}
-% \end{figure}
-
-Graphs in Figure 10 depict the autocorrelation functions (ACF) of the three Cartesian coordinates \( X \), \( Y \), and \( Z \). The ACF plots show that for \( X \) and \( Y \), significant correlations exist within a small range of lags (e.g., 1 to 15), while the ACF for \( Z \) exhibits slightly longer correlations. However, as the lag increases, the ACFs for all three axes quickly decay to near zero, confirming the efficient mixing of the MCMC chain and the validity of the sampling results.
-
-By calculation, the Effective Sample Size (ESS) and sampler performance (ESS per unit compute time) for both Auto-Step MCMC and MCMC on Constraint Manifolds are shown in the following table:
-
-
-\begin{center}
-\begin{tabular}{ |c|c|c|c|c|c|c| } 
-\hline
-Method & parameter &Sample size& ESS & ESS/sample & ESS/sec & (ESS/sec)/sample  \\
-\hline
-\multirow{3}{5em}{Auto-Step MCMC} & $x $& 99,000 & 11382.16 & 11.497\% & 4295.8191 & 4.339\%\\ 
-
-&y & 99,000 & 11046.24 & 11.578\% & 4169.0378 & 4.211\% \\
-
-&z & 99,000 & 24755.89 & 25.006\% & 9343.2925 &  9.438\%\\
-\hline
-\multirow{2}{9em}{MCMC on ConstraintManifolds} & x & 97,021 & 16767.51 & 17.282\% & 118.4194 & 0.122\%\\
-
-& y & 97,021 & 17498.83 & 18.0361\% & 123.5842 & 0.127\% \\ 
-&z & 97,021 & 44658.92 & 46.030\% & 315.4005 & 0.325\%\\
-
-
-\hline
-\hline
-\end{tabular}
-\end{center}
-MCMC on Constraint Manifolds consistently achieves a higher ESS across all parameters compared to Auto-Step MCMC. Specifically, for the $z$ parameter, the ESS is nearly double in the Constraint Manifold method, indicating a significantly higher quality of samples with more independent information. But still, the ESS/sec in Auto-step is much higher than MCMC on Constraint Manifolds which implies it has higher efficient calculation.
-
-
-\subsubsection{Ellipsoid:}
-
-Consider the ellipsoid \(E\) centered at \((0, 0, 0)\) in \(\mathbb{R}^3\), defined as:
-\[
-E = \{(x, y, z) \in \mathbb{R}^3 : \frac{x^2}{a^2} + \frac{y^2}{b^2} + \frac{z^2}{c^2} = 1\}
-\]
-where \(a\), \(b\), and \(c\) are positive real numbers representing the semi-axis lengths of the ellipsoid, and the marginal theoretical densities for \(X\), \(Y\), and \(Z\) are:
-\[
-g_X(x) = \frac{1}{2a}, \quad g_Y(y) = \frac{1}{2b}, \quad g_Z(z) = \frac{1}{2c}.
-\]
-
-We selected the parameters of the MCMC sampler to perform sampling on this ellipsoid. The total sample size is \(N = 10^7\), with a step size scale \(\sigma = 0.05\). The ellipsoid parameters are set to \(a = 1\), \(b = 1.5\), and \(c = 2\). Among the \(10^7\) samples, one in every 100 points is recorded, resulting in the sampled results shown in part (a) of Figure 11. A comparison with the theoretical ellipsoid indicates that the sampled results align well with the theoretical structure of the ellipsoid.
-
-% \begin{figure}[H]
-%     \centering
-%     \subfigure[Sampling points]{
-%         \includegraphics[width=0.3\textwidth]{Ellipsoid/sampling points.jpg}
-%         \label{fig:image1}}
-%         \hspace{0.03\textwidth}
-%     \subfigure[Empirical distribution of X-axis]{
-%         \includegraphics[width=0.3\textwidth]{Ellipsoid/Marginal X.jpg}
-%         \label{fig:image3}
-%     }
-        
-    
-%     \hspace{0.03\textwidth} 
-%     \subfigure[Empirical distribution of Y-axis]{
-%         \includegraphics[width=0.3\textwidth]{Ellipsoid/Marginal Y.jpg}
-%         \label{fig:image2}
-%     }
-%     \hspace{0.03\textwidth}
-%     \subfigure[Empirical distribution of Z-axis]{
-%         \includegraphics[width=0.3\textwidth]{Ellipsoid/marginal Z.jpg}
-%         \label{fig:image3}
-%     }
-%     \caption{Auto-step MCMC (ellipsoid)}
-%     \label{fig:side_by_side}
-% \end{figure}
-
-Further, we compared the empirical distributions along the three Cartesian coordinates with the corresponding theoretical distributions, as shown in parts (b), (c), and (d) from Figure 11. The results demonstrate that the empirical distributions along the three Cartesian coordinates match the theoretical distributions, confirming the correctness of the sampling results on the ellipsoid.
-
-
-% \begin{figure}[h]
-%     \centering
-%     \begin{minipage}{0.3\textwidth}
-%         \centering
-%         \includegraphics[width=\textwidth]{Ellipsoid/ACF X.jpg}
-%         \caption{ACF of X-axis}
-%         \label{fig:acf_x}
-%     \end{minipage}
-%     \hspace{0.03\textwidth}
-%     \begin{minipage}{0.3\textwidth}
-%         \centering
-%         \includegraphics[width=\textwidth]{Ellipsoid/ACF Y.jpg}
-%         \caption{ACF of Y-axis}
-%         \label{fig:acf_y}
-%     \end{minipage}
-%     \hspace{0.03\textwidth}
-%     \begin{minipage}{0.3\textwidth}
-%         \centering
-%         \includegraphics[width=\textwidth]{Ellipsoid/ACF Z.jpg}
-%         \caption{ACF of Z-axis}
-%         \label{fig:acf_z}
-%     \end{minipage}
-%     \caption{Autocorrelation functions (ACF) of X, Y, and Z axes (ellipsoid)}
-%     \label{fig:acf_combined}
-% \end{figure}
+\subsubsection{ACF}
+Figure \ref{fig:acf} shows the auto-correlation plot of both samples obtained from both samplers, and it can be observed that under all choices of $\sigma_0$, the acf from autostep manifold samples are lower than that from manifold samples. In particular, when $\sigma_0$ is really bad, the difference between two acfs are even larger.
+\begin{figure}[H]
+    \centering
+    \begin{adjustbox}{width=\textwidth}
+      \includegraphics{acf_bad_s.png}
+      \hspace{1em}
+      \includegraphics{acf_good_s.png}
+      \hspace{1em}
+      \includegraphics{acf_good_s.png}
+    \end{adjustbox}
+    \caption{ACF of both samplers with different choices of initial step size}
+    \label{fig:acf}
+\end{figure}
 
 
 
-Figures 15 illustrate the autocorrelation functions along the three Cartesian coordinates. It can be observed that the autocorrelation in the \(X\)-direction remains significant for the first 30 steps, the autocorrelation in the \(Y\)-direction remains significant for the first 50 steps, and the autocorrelation in the \(Z\)-direction remains significant for the first 50 steps. As the lag increases, the autocorrelation decreases more rapidly, eventually stabilizing near zero. This observation suggests that the sampling chain mixes well, demonstrating the effectiveness of the MCMC sampling process on the ellipsoid.
+\subsubsection{ESS}
+The ESS formula we are using here is $\frac{N}{1+ 2\sum_{k=1}^K \rho_k}$ where $N$ is the total number of MCMC sample points; $\rho_k$ is the autocorrelation at lag $k$; and $K$ is the maximum lag considered, which in our case, $N = 1000$, $K=50$.
+\begin{figure}[H]
+    \centering
+    \begin{adjustbox}{width=\textwidth}
+      \includegraphics[height=0.06\textheight]{ess_bad_s.png}
+      \hspace{1em}
+      \includegraphics[height=0.06\textheight]{ess_margin.png}
+      \hspace{1em}
+      \includegraphics[height=0.06\textheight]{ess_good_s.png}
+    \end{adjustbox}
+    \caption{ESS of both samplers with different choices of initial step size}
+    \label{fig:ess}
+\end{figure}
+From Figure \ref{fig:ess}, it can be observed that under all choices of $\sigma_0$, the ESS from autostep manifold samples are larger than that from manifold samples when the sample size gets larger. When $\sigma_0$ is bad, ESS from autostep manifold are better at all sample size choices.
 
+\subsubsection{Complexity}
+It can be expected that the computational complexity of autostep manifold should be greater than manifold without surprise since the additional step size adjusting step which involves multiple equation solvings within multiple point-projections back to $\Mscr$.
+\begin{figure}[H]
+    \centering
+    \begin{adjustbox}{width=\textwidth}
+      \includegraphics[height=0.05\textheight]{runtime_bad_s.png}
+      \hspace{1em}
+      \includegraphics[height=0.05\textheight]{runtime_margin_s.png}
+      \hspace{1em}
+      \includegraphics[height=0.05\textheight]{runtime_good_s.png}
+    \end{adjustbox}
+    \caption{Complexity of both samplers with different choices of initial step size}
+    \label{fig:time}
+\end{figure}
+So Figure \ref{fig:time} justifies our expectation that under all step size choices, the time complexity of autostep manifold is greater than manifold at all levels of sample size.
 
-
-By calculation, the Effective Sample Size (ESS) and sampler performance (ESS per unit compute time) for both Auto-Step MCMC and MCMC on Constraint Manifolds are shown in the following table:
-
-
-\begin{center}
-\begin{tabular}{ |c|c|c|c|c|c|c| } 
-\hline
-Method & parameter &Sample size& ESS & ESS/sample & ESS/sec & (ESS/sec)/sample  \\
-\hline
-\multirow{3}{5em}{Auto-Step MCMC} & $x $& 99,000 & 4485.96 & 4.531\% & 1738.9869 & 1.757\%\\ 
-
-&y & 99,000 & 2780.22 & 2.808\% & 1077.7545 & 1.089\% \\
-
-&z & 99,000 & 1950.07 & 1.970\% & 755.9470&  0.764\%\\
-\hline
-\multirow{2}{9em}{MCMC on ConstraintManifolds} & x & 99,000 & 62801.85 & 63.434\% & 489.2916 & 0.494\%\\
-
-& y & 99,000 & 39463.85 & 39.862\% & 307.4644 & 0.311\% \\ 
-&z & 99,000 & 67402.92 & 68.084\% & 525.1379 & 0.530\%\\
-
-
-\hline
-\hline
-\end{tabular}
-\end{center}
-
-MCMC on Constraint Manifolds consistently achieves a significantly higher ESS across all parameters compared to Auto-Step MCMC. For instance, the ESS for the $z$ parameter in MCMC on Constraint Manifolds is 68.08\%, which is over 30 times higher than Auto-Step MCMC's ESS of 1.97\%. This indicates that samples generated by MCMC on Constraint Manifolds are much more effective in capturing the underlying distribution, providing a greater amount of independent information from the same number of samples. Auto-Step MCMC demonstrates a much higher ESS per second across all parameters compared to MCMC on Constraint Manifolds. For example, Auto-Step MCMC achieves 1,738.99 ESS/sec for the $x$ parameter, whereas MCMC on Constraint Manifolds achieves 489.29 ESS/sec for the same parameter. This suggests that Auto-Step MCMC is more computationally efficient, generating more effective samples in less time.
-
-
-\subsection{Conclusion}
-
-
-\begin{itemize}
-    \item \textbf{Sampling Accuracy and Mixing:}  
-    Empirical distributions closely align with theoretical expectations, and the rapid decay observed in ACF plots highlights Auto-Step MCMC's effectiveness in accurately capturing target distributions while maintaining efficient mixing with low sample autocorrelation.
-    
-    \item \textbf{Performance Comparison:}  
-    MCMC on Constraint Manifolds consistently achieves higher Effective Sample Sizes (ESS) across various geometries, indicating superior sample quality. However, Auto-Step MCMC demonstrates significantly greater computational efficiency, with notably higher ESS/sec values. On geometries such as the torus and cone, Auto-Step MCMC excels, suggesting its robustness in scenarios involving polar coordinate transformations.
-    
-    \item \textbf{Overall Findings:}  
-    MCMC on Constraint Manifolds provides high-quality, independent samples that enhance statistical reliability. Meanwhile, Auto-Step MCMC emerges as the more computationally efficient choice, making it ideal for applications that prioritize speed and resource efficiency.
-\end{itemize}
 
 
 \section{Conclusion}
-In this project, we explored the manifold sampler using the involution framework, where we slightly extended the usual setting to arbitrary state space and used this framework to show that the manifold sampler has distribution invariance. Not only in theory, but we also numerically implemented an invariance test to solidify our proof. Finally, we also tried using an auto-step sampler and successfully extended it to sampling under three-dimensional geometric constraints. Then, we systematically compared the performance of Auto-Step MCMC with MCMC on Constraint Manifolds across different geometric shapes, providing a reference for future research. In the two figures converted to polar coordinates for analysis, the Effective Sample Size (ESS) achieved by Auto-Step MCMC was relatively closer to that of the alternative method, while its ESS/sec was higher. Overall, for large-scale samples requiring polar coordinate transformations, Auto-Step MCMC is the better choice.
+In this project, we modified the traditional manifold sampler(RATTLE scheme) with the autostep adjustment and discussed its correctness and benchmarked its performance against the traditional one. We should point out that though autostep manifold sampler is valid and it performs slightly better than the traditional manifold sampler in some cases, it however does not show much advantage compared to the other, especially when the initial step size is well-chosen, and both samplers do not appear to have fast mixing in our test case.
 
-For future research, we will further validate these findings in higher-dimensional spaces, exploring the potential of Auto-Step MCMC in more complex applications. Additionally, we will supplement Auto-step MCMC with a testing step to ensure sampling points lie on the manifold, thereby improving overall sampling quality.
+For future directions, there are certainly some aspects that remain to be explored further. First, some cases with non-trivial distributions defined on $\Mscr$ should be considered to evaluate whether autostep manifold outperforms much more than the traditional one; Second, the complexity of autostep manifold is still a big issue. In high-dimensional cases, it could probably take ages to run the samplerby simple computing capacity. So whether it is a scalable method needs to be explored further; Lastly and more challengingly, devise another novel sampler that is even more robust to the choice of step size parameter. Initial conjecture sketches that one could be contour and gradient-based.
 
 
 
@@ -679,16 +277,273 @@ For future research, we will further validate these findings in higher-dimension
 \renewcommand{\thetable}{\thesection.\arabic{table}}
 \setcounter{figure}{0}  % Reset figure counter
 \setcounter{table}{0}   % Reset table counter
+\setcounter{algorithm}{0}  % Reset algorithm counter
+
 
 
 \section{Proofs}
+\begin{proof}[Proof of Lemma \ref{lemma:finte_solver}]
+Since $\Mscr$ is smooth, then $F$ is continuous. Hence $\exists \delta > 0$ such that $\norm{x' - x} < \delta$, we have $\norm{F(x') - F(x)} < \eps$. Therefore for fixed $\sigma_0$ and $v_x$, $\exists n \in \N$ and $c \in \R^m$ such that $\norm{\sigma_0 2^{-n} v_x + Q_x \cdot c} < \delta$. Put $x' = x + \sigma_0 2^{-n} v_x + Q_x \cdot c$. Note that $F(x) = 0$, hence $\norm{F(x + \sigma_0 2^{-n} v_x + Q_x \cdot c)} < \eps$ implying $N \leq n < \infty$.
 
+
+% Let $G(c) = F(x + v_x + Q_x\cdot c)$, then by quasi-Newton, \[c_{n+1} = c_n - (\nabla G)^{-1}G(c_n)\]where $\nabla G = Q_x^\top Q_x$ is constant w.r.t $c$. Suppose $c^*$ is the solution to $G(c) = 0$, then
+% \[0 = G(c^*) = G(c_n) + \nabla G (c^* - c_n) + o(c^* - c_n)\]
+% This implies: $c^* - c_{n+1} = - (\nabla G)^{-1} o(c^* - c_n)$. Hence $c_n \to c^*$. Since $\Mscr$ is smooth, so $G$ is continuous, hence $\exists N \in \N$ and $\delta > 0$ such that $\norm{c_N - c^*} < \delta$, we have $\norm{G(c_N) - G(c^*)} < \eps$.
+
+\end{proof}
+
+
+\begin{proof}[Proof of Proposition \ref{prop:invariance}]
+Since manifold sampler with augmented state: $(x, v_x)$ is $\pi$-invariant by \cite{manifoldparent}, then apply the arguments in the proof of Proposition $4.2$ in \cite{autostep}
+\end{proof}
+
+
+% \begin{proof}[Proof of Theorem \ref{thm:ratest}]
+% At each iteration, we first simulate a random ``altitude'' $Y_i|=g(X), X$ and generate a sequence of samples from autostep manifold on the contour given the ``altitude'' and pick the last one. 
+% We introduce another random variable $Y$, which represents the random ``altitude'' of $g$ evaluated at some point $x \in \R^n$. 
+
+% Suppose we have a contour of $g$: $\Gamma_y = \inv{g}(\{y\})$ and we run manifold sampler on that to obtain a chain: $\{X_1, \ldots, X_m\}$. Cosnider the probability measure of $X_1$ w.r.t Lebesgue measure:
+% \[\P(X_1 \in A)= \mu(A) = \int_A g(x)dx = \int_{\R^+} \P(X_1\in A | Y = y) f_Y(y) dy\]
+% While by co-area formula, \[\int_A g(x) dx = \int_{\R} \int_{A \cap g^{-1}(\{y\})} \frac{g(x)}{\abs{\nabla g(x)}} \Hcal^{n-1}(dx)dy\]
+
+% % So the probability measure of $X_1$ is:
+% % \[\P(X_1 \in A)= \mu(A) = \int_A g(x)dx = \int_{\R^+} \P(X_1\in A | Y = y) dy\] 
+% So we can put the conditional probability measure: \[\xi_Y(A) = \P(X_1 \in A | Y = y) = \int_{A \cap g^{-1}(\{y\})} \frac{g(x)}{\abs{\nabla g(x)} f_Y(y)} \Hcal^{n-1}(dx)\]where the density for the ``altitude'' $Y$ is: \[f_Y(y) = \int_{g^{-1}(\{y\})} \frac{g(x)}{\abs{\nabla g(x)}} \Hcal^{n-1}(dx)\]
+
+% The key properties from the above derivations are:
+% \begin{enumerate}
+% \item[i]
+% $X_1 \sim \mu$ is equivalent to $Y \sim \nu$ and $X_1 | Y \sim \xi_Y$
+% \item[ii]
+% If the manifold sampler kernel $K$ we want to test leads to invariant distribution with respect to $\xi_Y$, i.e. $\xi_Y(A) = \int \xi_Y(dx) K(x, A)$, then given $X_2 |X_1 \sim K(X_1, \cdot)$, we will have $X_2 \sim \mu$. This is because $X_2 | Y \sim \xi_Y$ and $Y \sim \nu$, which is equivalent to $X_2 \sim \mu$. Finally, by induction we can have $X_m \sim \mu$. Put $S = X_m$ as our test sample.
+% \end{enumerate}
+% In short, if we test: $S \sim \mu$, then $K$ is correct; if not, then $K$ has bug. So to test if $S \sim \mu$, once we have a sequence of test samples generated by our test algorithm, and another sequence of samples directly generated from the true distribution: $\mu$ with density $g$, then we could use Kolmogorov-Smirnov test to check the p-value. If p-value is small, then we reject $H_0: S \sim \mu$.
+% \end{proof}
 
 \section{Additional pseudo-codes}
+Below are some more pseudo-codes that have been used in the project, some of which are based on efficient tricks of matrix computation
 
+\begin{algorithm}[H]
+    \caption{Quasi-Newton solver}
+    \label{algo:solver}
+    \begin{algorithmic}
+    \Require $x+v_x$, $Q_x$ and $L_x$
+    \State $a \gets \mathbf{0}$
+    \State $y \gets x+v_x + Q_x \cdot a$; 
+    \State $i \gets 1$
+    \State found $\gets$ False
+    
+    \While{$i <$ nmax and $\norm{F(y)} > \eps$}
+         \State Forward-backward solve: $L_x L_x^\top \delta_a = -\norm{F(y)}$ for $\delta_a$
+         \State $a \gets a + \delta_a$ 
+         \State $y \gets x+v_x + Q_x \cdot a$
+         \State $i \gets i+1$
+    \EndWhile
+    \If {$i < $nmax}
+    \State found $\gets$ True
+    \EndIf
+    \State\Return $(y, \text{found})$
+    
+    % \For{$i = 1, \ldots, n$}
+    %     \State sample: $x' \sim q(\cdot | x)$
+    % \EndFor
+    \end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[H]
+    \caption{Forward tangent move: sample $v_x \in T_x$}
+    \label{algo:forward tangent}
+    \begin{algorithmic}
+    \State Generate $n$-dimensional i.i.d $z = \{z_i\}_{i=1}^n$ where $z_i \sim N(0,1), \forall i$ 
+    \State Forward-backward solve for $\xi$: $L_x L_x^\top \xi= Q_x^\top z$
+    \State Tangent proposal by projecting to tangent space: $v_x \gets \mathbf{P}_{T_x} \cdot z = (\mathbb{I} - Q_x(Q_x^\top Q_x)^{-1} Q_x^\top) \cdot z = z - Q_x \xi$ 
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+    \caption{Reverse tangent move: $v_y \in T_y$}
+    \label{algo:reverse tangent}
+    \begin{algorithmic}
+    \State Find Cholesky decomposition of $L_y L_y^\top = Q_y^\top Q_y$
+    \State Forward-backward solve for $\xi$: $L_y L_y^\top \xi= Q_y^\top (x-y)$
+    \State Set reverse tangent proposal: $v_y \gets \mathbf{P}_{T_y} \cdot (x-y) = (\mathbb{I} - Q_y(Q_y^\top Q_y)^{-1} Q_y^\top) \cdot (x-y) = (x-y) - G_y \xi$
+    \end{algorithmic}
+\end{algorithm}
 
 \section{Additional experiment results}
 
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|}
+    \hline
+    \textbf{$x$ component} & \textbf{$y$ component} \\
+    \hline
+    0.7946637387576738 & 0.5005673707894058 \\
+    0.9136894237272155 & 0.7946637387576738 \\
+    0.06153429181321559 & 0.14836452078962484 \\
+    0.8282194040312439 & 0.5728904395829821 \\
+    0.7228251828701066 & 0.28779764348473313 \\
+    0.9357699014782725 & 0.4006338815832625 \\
+    0.025633868930359294 & 0.6101664688189142 \\
+    0.43260886958153144 & 0.8282194040312439 \\
+    0.1082872208757189 & 0.37012017606173 \\
+    0.6854967337920594 & 0.5728904395829821 \\
+    \hline
+    \end{tabular}
+    \caption{P-values of $x$ and $y$ components in K-S test for correctness}
+    \label{tab:pvals}
+    \end{table}
+Table \ref{tab:pvals} shows the p-values of both $x$ and $y$ components during the K-S test mentioned in section $4.1$. As we can see that all values are above the adjusted threshold $0.025$ by realtively big margin, indicating the $H_0$ should not be rejected.
+% \begin{table}[H]
+%     \centering
+%     \begin{minipage}{0.48\textwidth}
+%         \centering
+%         \resizebox{\textwidth}{!}{
+%         \begin{tabular}{|rlrrr|}
+%             \hline
+%            & Type & Estimate & Std. Error & t value \\ 
+%             \hline
+%           (Intercept) & Fixed & -0.12 & 0.06 & -2.00\\ 
+%             FormDistractor & Fixed & 0.37 & 0.04 & 10.51\\ 
+%             MeaningDistractor & Fixed & 0.12 & 0.04 & 3.47\\ 
+%             Mandarin\_AoA & Fixed & 0.28 & 0.08 & 3.73\\ 
+%             cs\_score & Fixed & -0.14 & 0.06 & -2.24\\ 
+%             lextale\_man & Fixed & -0.24 & 0.09 & -2.83\\ 
+%             dominance & Fixed & -0.01 & 0.09 & -0.11\\ 
+%             (Intercept) & Random & 0.36 & - & - \\ 
+%             (Residual) & Random & 0.79 & - & - \\ 
+%              \hline
+%           \end{tabular}
+%         }
+%           \caption{Summary of fixed and random effects of RT model}
+%           \label{tab:RT model summary}
+%     \end{minipage}
+%     \hfill
+%     \begin{minipage}{0.48\textwidth}
+%         \centering
+%         \resizebox{\textwidth}{!}{
+%         \begin{tabular}{|rlrrr|}
+%             \hline
+%            & Type & Estimate & Std. Error & z value\\ 
+%             \hline
+%           (Intercept) & Fixed & 2.79 & 0.14 & 20.28\\ 
+%             dominance & Fixed & -0.77 & 0.16 & -4.91\\ 
+%             FormDistractor & Fixed & -1.55 & 0.14 & -11.14 \\ 
+%             MeaningDistractor & Fixed & -1.13 & 0.14 & -7.96 \\ 
+%             Mandarin\_AoA & Fixed & -0.40 & 0.13 & -3.17 \\ 
+%             cs\_score & Fixed & 0.28 & 0.11 & 2.57 \\ 
+%             lextale\_eng & Fixed & 0.31 & 0.13 & 2.37 \\ 
+%             (Intercept) & Random & 0.53 & - & - \\ 
+%              \hline
+%           \end{tabular}
+%         }
+%           \caption{Summary of fixed and random effects of accuracy model}
+%           \label{tab:accuracy model summary}
+%     \end{minipage}
+% \end{table} 
+
+
+% Now with combining autostep But we notice that such algorithms along with many others with deterministic proposals have things in common, which is that they usually have involutive transformation between states to satisfy the reversibility. In MCMC literature, \cite{tierney1998} pointed out that if the transformation between states is deterministic and involutive, then by setting the proposal to be delta measure, the detailed balance condition will follow, which implies the distribution invariance. So we wish to take advantage of this involution framework to show that the manifold sampler has $\pi$ invariance.
+
+% Before that, we will show some important results as a baseline for our justification for $\pi$ invariance of the manifold sampler. Suppose the target distribution is $\pi$ with density $f$ with respect to the Lebesgue measure, and let $x, y$ be the current and next state. The usual Metropolis-Hastings ratio is: $r = \frac{f(y) q(x | y)}{f(x) q(y | x)}$ for some proposal: $q$. But given our state transformation $T$ such that $y = T(x)$ being deterministic and involutive, i.e. $T = \inv{T}$, then $r(x) = \frac{f(T(x))}{f(x)} \cdot \abs{J_T(x)}$, where $J_T(x)$ is the determinant of Jacobian matrix of $T$. Now we extend this notation a little bit:
+
+% Suppose our target distribution $\pi$ is defined w.r.t. measure $\mu$ so that the Radon-Nikodyn derivative: $\frac{d\pi}{d\mu}$ is well-defined, then we define the ratio: \[r(x) = \frac{d T^*\pi}{d\mu}(x) / \frac{d\pi}{d\mu}(x)\]where $T^*\pi$ is the pull-back probability measure such that: $T^*\pi(A) = \pi(T(A))$
+
+% If we apply the M-H routine with the new $r(x)$ defined above, then the consequence is that we will have global balance and hence distribution invariance. To show this result, we will introduce the following lemma as an intermediate step.
+
+% % \begin{lemma}\label{lemma_invol}
+% % Let $\pi$ be the target distribution on $\Xcal$ with respect to measure $\mu$ and $T$ be an involution on $\Xcal$. Given the current state: $x$ and the next state: $y$ such that $y = T(x)$, and the acceptance probability is defined as:  
+% % \[\alpha(x, T(x)) = \min\{1, r(x)\}\]
+% % then we will have the detailed balance equation: 
+% % \[\frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)\]
+% % \end{lemma}
+
+% % \begin{proof}
+% % First, note that by the definition of pull-back measure, $\frac{d\pi}{d\mu}(y) = \frac{d\pi}{d\mu}(T(x)) = \frac{d T^*\pi}{d\mu}(x)$. Since $T = T^{-1}$, then $x = T^{-1}(y) = T(y)$, so again, $\frac{d\pi}{d\mu}(x) = \frac{d\pi}{d\mu}(T(y)) = \frac{d T^*\pi}{d\mu}(y)$, hence $r(x) \cdot r(y) = 1$.
+
+% % Therefore, \begin{align*}
+% % & \frac{d\pi}{d\mu}(x) \cdot \alpha(x, T(x)) = \frac{d T^*\pi}{d\mu}(x) \cdot \min\Big\{\frac{d\pi}{d\mu}(x) / \frac{d T^*\pi}{d\mu}(x), 1\Big\}\\
+% % & = \frac{d T^*\pi}{d\mu}(x) \cdot\min\Big\{\frac{1}{r(x)}, 1\Big\} = \frac{d T^*\pi}{d\mu}(x) \cdot\min\{r(y), 1\} = \frac{d T^*\pi}{d\mu}(x)\cdot\alpha(T(x), x)
+% % \end{align*}
+
+% % \end{proof}
+
+
+% % \begin{theorem}\label{thm_invariance}
+% % Let $X$ be the current state and $Y$ be the next state and $X$ has distribution: $\pi$ which has density with respect to measure $\mu$. Suppose $T$ is an involution such that $Y = T(X)$. Define the transition kernel: $K(x, E) = \alpha \cdot \1_E(T(x)) + (1 - \alpha) \1_E(x)$ for any event $E$. Then the global balance holds:
+% % \[\P(Y \in A) = \pi(A) = \int_{x \in \Xcal} \pi(dx) K(x, A)\]
+% % \end{theorem}
+
+% % \begin{proof}
+% % \begin{align*}
+% % & \int_{x \in \Xcal} \pi(dx) K(x, A) = \int_{x \in \Xcal} \pi(dx) [\alpha\1_A(T(x)) + (1-\alpha)\1_A(x)]\\
+% % & = \int_{x \in \Xcal} \pi(dx) \alpha(x, T(x)) \1_A(T(x)) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% % & = \int_{x \in \Xcal} \frac{d T^*\pi}{d\mu}(x) \alpha(T(x), x)\1_A(T(x)) d\mu(x) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% % & = \int_{y \in \Xcal} \pi(dy) \alpha(y, \inv{T}(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% % & = \int_{y \in \Xcal} \pi(dy) \alpha(y, T(y)) \1_A(y) + \int_{x \in \Xcal} \pi(dx) (1 - \alpha) \1_A(x)\\
+% % & = \int_{y \in \Xcal} \pi(dy) \1_A(y) = \pi(A)\\
+% % \end{align*}
+% % \end{proof}
+
+
+
+
+
+% \subsection{Involution within the manifold sampler}
+% Now back to the manifold sampler setting, compared to \cite{manifoldparent}, the advantage of the above abstract framework is that it is a good tool to help us prove that the manifold sampler has $\pi$ invariance if we can find an involution between the states. Indeed, by the trick of augmenting space, i.e. introducing some necessary auxiliary variables, we can construct an involution from the manifold sampler.
+
+% Let $S = \{(x, v_x) \in T\mathscr{M} : \norm{F(x + v_x + G_x \cdot a)} < \eps\} \subset T\mathscr{M}$ for some small enough positive $\eps$, where $w_x = G_x \cdot a \in N_x$, for some coefficient vector $a \in \R^m$. This means $S$ is some subset of tangent bundle $T\mathscr{M}$ such that we could have a successful projection on $\mathscr{M}$, thus we could denote $y = x + v_x + w_x$. 
+% % For simplicity, we will consider all the states from $S$ for later discussion.
+
+% Define $T_0: T\mathscr{M} \to T\mathscr{M}$ as $T_0(x, v_x) = (y, v_y)$ 
+% where:
+% $\begin{cases}
+% y =  x + v_x + w_x = x + v_x + G_x \cdot a\\
+% v_y = \textit{proj}_{T_y}(x-y)
+% \end{cases}$
+
+% Let $A = \{(x, v_x) \in S : \norm{F(y + v_y + G_y a'} < \eps\}$, where $(y, v_y) = T_0(x, v_x)$, so $A$ represents the set where reversibility holds.
+
+% Define $T: T\mathscr{M} \to T\mathscr{M}$ as $T(x, v_x) = T_0(x, v_x) \cdot \1_A + I(x, v_x) \cdot \1_{A^c}$.
+
+% We claim that: $T$ is a non-trivial involution on $T\mathscr{M}$, i.e. $T \neq I$.
+
+% \begin{proof}
+% First, it is essential to argue that such $A \neq \emptyset$. By assumption, $\mathscr{M}$ is smooth manifold so that $F$ is a smooth function. Thus, for a given $\eps > 0, \exists \delta > 0$ such that $\forall x',x \in \R^n$ with $\norm{x'- x} < \delta$, we have $\norm{F(x') - F(x)} < \eps$. 
+
+% In order to find at least one element, we could pick $x \in \mathscr{M}$, and choose an open ball inside the ambient space centered at $x$ : $B_\delta(x)$ with radius $\delta$, and pick $y \in B_\delta(x) \cap \mathscr{M}$.
+
+% Let $v_x = \textit{proj}_{T_x}(y-x)$, so during the process of solving $a$ with starting $a_0 = 0$, for each intermediate $a$, 
+% \[\norm{x + v_x + G_x a - x} \leq \norm{v_x + \textit{proj}_{N_x}(y-x)} = \norm{y-x} < \delta\]hence $x + v_x + G_x a \in B_\delta(x)$, which implies $\norm{F(x + v_x + G_x a)} < \eps$, so $(x, v_x) \in S$;
+
+% Now for the reverse projection, by the similar argument from above, for each intermediate $a'$, \[\norm{y + v_y + G_y a' - y} \leq \norm{v_y + \textit{proj}_{N_y}(x-y)} = \norm{x-y} < \delta\]hence $y + v_y + G_y a' \in B_\delta(y)$, which implies $\norm{F(y + v_y + G_y a')} < \eps$, so $(x, v_x) \in A$.
+% % so \[v_x = (I - G_x(G_x^TG_x)^{-1}G_x^T)(y-x)\]thus \[F(x + v_x + G_x \cdot a) = F(y + G_x(a - (G_x^TG_x)^{-1}G_x^T(y-x)))\]
+% % Let coefficient $b = (G_x^TG_x)^{-1}G_x^T(y-x)$, choose $a$ such that $\norm{a - b} < \frac{\delta}{\norm{G_x}}$, then
+% % \[\norm{y + G_x(a-b) - y} \leq \norm{G_x} \cdot \norm{a-b} < \delta\]
+% % hence $y + G_x(a-b) \in B_\delta(y)$, which implies that $\norm{F(x + v_x + G_x \cdot a)} < \eps$ since $F(y) = 0$, so $(x, v_x) \in S$.
+
+% % By the similar arugment for the reverse projection, we let $b' = (G_y^TG_y)^{-1}G_y^T(x-y)$, thus $y + v_y + G_y a' = x + G_y(a'-b')$. So we could choose $a'$ with $\norm{a'- b'} < \frac{\delta}{\norm{G_y}}$, thus $y + v_y + G_y a' \in B_\delta(x)$ and hence $\norm{F(y + v_y + G_y a')}< \eps$. So $(x, v_x) \in A$.
+
+% Next we will show that by the definition of $T_0$, $\forall (x, v_x) \in A, T_0 \circ T_0 = I$. 
+
+% Let $(x, v_x) \in A$. Suppose $(y, v_y) = T_0(x, v_x)$ and $(x', v_{x'}) = T_0(y, v_y) = T_0\circ T_0(x, v_x)$.
+
+% Then by definition, 
+% \[x' = y + v_y + w_y = y + \textit{proj}_{T_y}(x-y) + \textit{proj}_{N_y}(x-y) = y + (x - y) = x\]and
+% \[v_{x'} = \textit{proj}_{T_{x'}}(y-x') = \textit{proj}_{T_x}(y-x) = \textit{proj}_{T_x}(v_x + w_x) = v_x \text{ (since $w_x \perp T_x$)}\]
+% which proves our claim.
+% \end{proof}
+
+
+
+
+
+% \begin{corollary}
+% Let $\pi$ be the distribution defined on the manifold. Let the kernel of the manifold sampler be:
+% \[K(\tilde{x}, A) = \alpha\Big(\tilde{x}, T(\tilde{x})\Big)\1_A(T(\tilde{x})) + \Big(1- \alpha(\tilde{x}, T(\tilde{x}))\Big)\1_A(\tilde{x})\]where $\tilde{x} = (x, v_x)$ and $\tilde{y} = (y, v_y)$ for the augmented space, and \[\alpha\Big(\tilde{x}, T(\tilde{x})\Big) = \min\Big\{1, \frac{f(y)p(v_y|y)}{f(x)p(v_x|x)}\Big\}\]
+% then $K$ has distribution invariance.
+% \end{corollary}
 
 
 \end{document}

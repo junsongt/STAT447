@@ -96,7 +96,7 @@ def adjust_step(x, v_x, s, q, f, G, G_x, L_x, nmax, eps, a, b):
 
 
 # ===================================================================================
-def manifold_auto(x, q, f, G, G_x, L_x, s, nmax, eps):
+def sample(x, q, f, G, G_x, L_x, s, nmax, eps):
     # guard inf case
     if np.any(np.isnan(x)) or np.any(np.isinf(x)):
         print("Invalid point encountered:", x)
@@ -188,108 +188,108 @@ def reversible(solve_obj, x, eps):
     return True
 
 
-# ==============================================================================
-# ellipsoid settings
-s = 0.5
-A = 2
-B = 1
-C = 1.5
+# # ==============================================================================
+# # ellipsoid settings
+# s = 0.5
+# A = 2
+# B = 1
+# C = 1.5
 
-n_iter = 1000  # number of samples
-# constraints are {h_i(x) : h_i(x) >= 0}
-q = lambda x: np.array([x[0] ** 2 / A**2 + x[1] ** 2 / B**2 + x[2] ** 2 / C**2 - 1])
-# gradient matrix as a function of x
-G = lambda x: np.array([[2 * x[0] / A**2], [2 * x[1] / A**2], [2 * x[2] / A**2]])
+# n_iter = 1000  # number of samples
+# # constraints are {h_i(x) : h_i(x) >= 0}
+# q = lambda x: np.array([x[0] ** 2 / A**2 + x[1] ** 2 / B**2 + x[2] ** 2 / C**2 - 1])
+# # gradient matrix as a function of x
+# G = lambda x: np.array([[2 * x[0] / A**2], [2 * x[1] / A**2], [2 * x[2] / A**2]])
 
-# distribution function
-f = lambda x: 1
-eps = 1e-4  # error margin
-nmax = 10  # number of iteration for newton solver
-# initial values
-x = np.array([2, 0, 0])
-G_x = G(x)
-L_x = la.cholesky(G_x.T @ G_x, lower=True)
+# # distribution function
+# f = lambda x: 1
+# eps = 1e-4  # error margin
+# nmax = 10  # number of iteration for newton solver
+# # initial values
+# x = np.array([2, 0, 0])
+# G_x = G(x)
+# L_x = la.cholesky(G_x.T @ G_x, lower=True)
 
-# # unit test
-# d = len(x)
-# z = np.random.normal(0, 1, d)
-# xi = la.solve_triangular(L_x.T, la.solve_triangular(L_x, G_x.T @ z, lower=True),lower=False)
-# v_x = z - G_x @ xi
-# D = np.random.uniform(0, 1, 2)
-# a = min(D)
-# b = max(D)
-# print(adjust_step(x, v_x, s, q, f, G, G_x, L_x, nmax, eps, a, b))
+# # # unit test
+# # d = len(x)
+# # z = np.random.normal(0, 1, d)
+# # xi = la.solve_triangular(L_x.T, la.solve_triangular(L_x, G_x.T @ z, lower=True),lower=False)
+# # v_x = z - G_x @ xi
+# # D = np.random.uniform(0, 1, 2)
+# # a = min(D)
+# # b = max(D)
+# # print(adjust_step(x, v_x, s, q, f, G, G_x, L_x, nmax, eps, a, b))
 
-# =======================================================================
-# sampling
-samples = [x]
-prev = x
-count = 0
-for i in range(n_iter):
-    res = manifold_auto(x, q, f, G, G_x, L_x, s, nmax, eps)
-    x = res["pt"]
-    if not np.array_equal(x, prev):
-        count = count + 1
-    samples.append(x)
-    G_x = res["grad"]
-    L_x = res["chol"]
-    s = res["step"]
+# # =======================================================================
+# # sampling
+# samples = [x]
+# prev = x
+# count = 0
+# for i in range(n_iter):
+#     res = sample(x, q, f, G, G_x, L_x, s, nmax, eps)
+#     x = res["pt"]
+#     if not np.array_equal(x, prev):
+#         count = count + 1
+#     samples.append(x)
+#     G_x = res["grad"]
+#     L_x = res["chol"]
+#     s = res["step"]
 
-samples = np.array(samples)
-print(
-    "number of samples: ", len(samples), " and the proportion: ", count / len(samples)
-)
+# samples = np.array(samples)
+# print(
+#     "number of samples: ", len(samples), " and the proportion: ", count / len(samples)
+# )
 
-# plot
-# Separate the coordinates into x, y, z
-X = samples[:, 0]
-Y = samples[:, 1]
-Z = samples[:, 2]
+# # plot
+# # Separate the coordinates into x, y, z
+# X = samples[:, 0]
+# Y = samples[:, 1]
+# Z = samples[:, 2]
 
-# Create the 3D plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection="3d")
+# # Create the 3D plot
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection="3d")
 
-###########################################
-# final plot mode
-# Scatter plot
-ax.scatter(X, Y, Z, c="b", marker="o")
+# ###########################################
+# # final plot mode
+# # Scatter plot
+# ax.scatter(X, Y, Z, c="b", marker="o")
 
-# Labels and title
-ax.set_xlabel("X-axis")
-ax.set_ylabel("Y-axis")
-ax.set_zlabel("Z-axis")
-ax.set_title("ellipsoid")
-
-###########################################
-# # animation mode
-# scatter = ax.scatter([], [], [], c="b", marker="o")
-
-# # Set axes labels
+# # Labels and title
 # ax.set_xlabel("X-axis")
 # ax.set_ylabel("Y-axis")
 # ax.set_zlabel("Z-axis")
-# ax.set_title("ellipsoid animation")
+# ax.set_title("ellipsoid")
 
-# # Set axis limits
-# ax.set_xlim([min(X) - 0.1, max(X) + 0.1])
-# ax.set_ylim([min(Y) - 0.1, max(Y) + 0.1])
-# ax.set_zlim([min(Z) - 0.1, max(Z) + 0.1])
+# ###########################################
+# # # animation mode
+# # scatter = ax.scatter([], [], [], c="b", marker="o")
+
+# # # Set axes labels
+# # ax.set_xlabel("X-axis")
+# # ax.set_ylabel("Y-axis")
+# # ax.set_zlabel("Z-axis")
+# # ax.set_title("ellipsoid animation")
+
+# # # Set axis limits
+# # ax.set_xlim([min(X) - 0.1, max(X) + 0.1])
+# # ax.set_ylim([min(Y) - 0.1, max(Y) + 0.1])
+# # ax.set_zlim([min(Z) - 0.1, max(Z) + 0.1])
 
 
-# # Update function for animation
-# def update(frame):
-#     scatter._offsets3d = (X[:frame], Y[:frame], Z[:frame])
-#     return (scatter,)
+# # # Update function for animation
+# # def update(frame):
+# #     scatter._offsets3d = (X[:frame], Y[:frame], Z[:frame])
+# #     return (scatter,)
 
 
-# # Create the animation object
-# ani = animation.FuncAnimation(
-#     fig, update, frames=n_iter, interval=50, blit=False, repeat=False
-# )
-# ani.save("D:/ellipsoid_animation.mp4", writer="ffmpeg")
+# # # Create the animation object
+# # ani = animation.FuncAnimation(
+# #     fig, update, frames=n_iter, interval=50, blit=False, repeat=False
+# # )
+# # ani.save("D:/ellipsoid_animation.mp4", writer="ffmpeg")
 
-###########################################
+# ###########################################
 
-# Show the plot
-plt.show()
+# # Show the plot
+# plt.show()
